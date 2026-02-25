@@ -1,20 +1,52 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Project: Block Clipper - A browser extension for content clipping and distribution
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  Tech Stack:
+  - WXT (Web Extension Tools) - Manifest V3
+  - React 19
+  - TypeScript 5.9
+  - IndexedDB for storage
+
+  Architecture:
+  - Content Scripts: Capture content from web pages
+  - Background Service Worker: Handle storage and exports
+  - Sidebar UI: Main interface for browsing and managing clipped items
+  - Popup UI: Quick actions and simple status display only
+
+  Core Concepts:
+  - Block-based content model (inspired by Notion/Contentful)
+  - Unified storage abstraction layer over IndexedDB
+  - Export as distribution pipeline (JSON/Markdown)
+
+  Conventions:
+  - Code: English only (variables, functions, comments)
+  - Documentation:
+    - AI-generated artifacts (proposal, design, tasks): English
+    - Human-written docs (README, guides): Chinese
+    - Discussion and comments: Chinese
+  - Use Async/Await for asynchronous operations
+  - Error handling with user-friendly messages
+
+  Non-goals:
+  - No server-side backend (pure client-side)
+  - No user authentication (MVP)
+  - No real-time sync features
+
+rules:
+  proposal:
+    - Always include "Success Criteria" section
+    - Keep "Non-goals" explicit
+    - Use Chinese for descriptions
+
+  design:
+    - Include data flow diagrams where applicable
+    - Specify IndexedDB schema explicitly
+    - Consider MV3 constraints
+    - Define Sidebar vs Popup responsibilities clearly
+
+  tasks:
+    - Break down into 2-4 hour chunks
+    - Include testing tasks
+    - Mark dependencies between tasks
