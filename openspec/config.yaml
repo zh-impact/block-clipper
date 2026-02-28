@@ -4,7 +4,10 @@ context: |
   Project: Block Clipper - A browser extension for content clipping and distribution
 
   Tech Stack:
-  - WXT (Web Extension Tools) - Manifest V3
+  - WXT (https://wxt.dev) - Web Extension Framework for building Chrome/Firefox/Safari/Edge extensions with Vite
+    - Not related to Mozilla WXT, it's a modern framework by Aklinker1
+    - Supports Manifest V3, TypeScript, React, Vue, Solid, Svelte
+    - Provides HMR, auto-imports, TypeScript APIs, and content script UI
   - React 19
   - TypeScript 5.9
   - IndexedDB for storage
@@ -19,6 +22,12 @@ context: |
   - Block-based content model (inspired by Notion/Contentful)
   - Unified storage abstraction layer over IndexedDB
   - Export as distribution pipeline (JSON/Markdown)
+
+  WXT-Specific Notes:
+  - Uses defineBackground(), defineContentScript() wrappers
+  - Pre-rendering happens during build (browser APIs may not be available)
+  - HMR enabled for faster development
+  - Auto-generates manifest.json from config
 
   Conventions:
   - Code: English only (variables, functions, comments)
