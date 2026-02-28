@@ -88,6 +88,16 @@ async function openSidePanel(): Promise<void> {
   }
 }
 
+/**
+ * Open documentation/help
+ */
+function openDocumentation(): void {
+  chrome.tabs.create({
+    url: 'https://github.com/yourusername/block-clipper#readme',
+  });
+  window.close();
+}
+
 function App(): JSX.Element {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -172,6 +182,9 @@ function App(): JSX.Element {
           <li>Right-click and choose <strong>"Clip Selection"</strong></li>
           <li>Or use shortcut: <kbd>Ctrl+Shift+Y</kbd></li>
         </ol>
+        <button onClick={openDocumentation} className="help-link">
+          📖 Documentation & Help
+        </button>
       </div>
 
       <style>{`
@@ -364,6 +377,24 @@ function App(): JSX.Element {
 
         .help-list li {
           margin-bottom: 3px;
+        }
+
+        .help-link {
+          margin-top: 10px;
+          width: 100%;
+          padding: 8px;
+          background: #fff;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 11px;
+          color: #3498db;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .help-link:hover {
+          background: #f0f8ff;
+          border-color: #3498db;
         }
 
         kbd {

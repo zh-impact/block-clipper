@@ -9,7 +9,7 @@ import { convertHTMLtoMarkdownSafe } from '../utils/converter';
 /**
  * Message types for content script communication
  */
-type MessageType = 'TRIGGER_CLIP' | 'CLIP_CONTENT' | 'CLIP_SUCCESS' | 'CLIP_ERROR';
+type MessageType = 'TRIGGER_CLIP' | 'CLIP_CONTENT' | 'CLIP_SUCCESS' | 'CLIP_ERROR' | 'PING';
 
 /**
  * Message payload
@@ -206,6 +206,12 @@ function showNotification(title: string, message: string): void {
  * @returns true if we will send a response asynchronously, false otherwise
  */
 function handleMessages(message: MessagePayload, sendResponse?: (response?: unknown) => void): boolean {
+  if (message.type === 'PING') {
+    // Background is checking if content script is ready
+    sendResponse?.({ ready: true });
+    return false; // Response already sent
+  }
+
   if (message.type === 'TRIGGER_CLIP') {
     // Background is requesting a clip (e.g., from keyboard shortcut or context menu)
     // Send immediate response, then execute clipping asynchronously
@@ -213,6 +219,7 @@ function handleMessages(message: MessagePayload, sendResponse?: (response?: unkn
     void clipContent();
     return false; // Response already sent
   }
+
   return false; // Not handling this message
 }
 

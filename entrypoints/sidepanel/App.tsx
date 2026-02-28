@@ -13,6 +13,16 @@ import type { Block } from '../../utils/block-model';
 type ViewType = 'list' | 'detail' | 'empty';
 
 /**
+ * Toast notification
+ */
+interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+  duration?: number;
+}
+
+/**
  * App state
  */
 interface AppState {
@@ -22,6 +32,15 @@ interface AppState {
   blocks: Block[];
   isLoading: boolean;
   isComposing: boolean; // Track IME composition (Chinese input method)
+  currentPage: number;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  selectedIndex: number; // For keyboard navigation
+  isSearchMode: boolean; // Track if we're in search mode
+  toasts: Toast[]; // Toast notifications
+  isSearching: boolean; // Show loading indicator during search
+  storageQuotaWarning: boolean; // Show storage quota warning
+  totalCount: number; // Total number of clips in storage
 }
 
 /**
@@ -36,42 +55,83 @@ export default function App(): JSX.Element {
     blocks: [],
     isLoading: true,
     isComposing: false,
+    currentPage: 1,
+    hasMore: false,
+    isLoadingMore: false,
+    selectedIndex: -1,
+    isSearchMode: false,
+    toasts: [],
+    isSearching: false,
+    storageQuotaWarning: false,
+    totalCount: 0,
   });
 
   // Initialize storage and load blocks
   useEffect(() => {
     const storageService = getStorageService();
 
-    const loadBlocks = async () => {
+    const loadBlocks = async (page = 1, append = false) => {
       try {
         await storageService.initialize();
 
-        // Load first page of blocks
-        const result = await storageService.query({ page: 1, limit: 50 });
+        // Load blocks with pagination
+        const result = await storageService.query({ page, limit: 50 });
 
         setState((prev) => ({
           ...prev,
-          blocks: result.items,
+          blocks: append ? [...prev.blocks, ...result.items] : result.items,
           currentView: result.items.length > 0 ? 'list' : 'empty',
           isLoading: false,
+          currentPage: page,
+          hasMore: result.items.length === 50, // If we got 50 items, there might be more
+          isLoadingMore: false,
+          selectedIndex: -1, // Reset selection when data changes
+          totalCount: result.total,
         }));
       } catch (error) {
         console.error('[Sidebar App] Failed to load blocks:', error);
-        setState((prev) => ({ ...prev, isLoading: false }));
+        setState((prev) => ({ ...prev, isLoading: false, isLoadingMore: false }));
       }
     };
 
     void loadBlocks();
+  }, []);
 
-    // Listen for new blocks being added
-    const handleNewBlock = () => {
-      void loadBlocks();
+  // Listen for messages from background (new clip added, etc.)
+  useEffect(() => {
+    const handleMessage = (message: any) => {
+      console.log('[Sidebar App] Received message:', message);
+
+      if (message.type === 'NEW_CLIP_ADDED') {
+        // Show success notification
+        showToast('New clip added!', 'success');
+
+        // Reload blocks to show the new clip
+        const reloadBlocks = async () => {
+          try {
+            const storageService = getStorageService();
+            const result = await storageService.query({ page: 1, limit: 50 });
+
+            setState((prev) => ({
+              ...prev,
+              blocks: result.items,
+              currentView: 'list',
+              totalCount: result.total,
+            }));
+          } catch (error) {
+            console.error('[Sidebar App] Failed to reload blocks:', error);
+          }
+        };
+
+        void reloadBlocks();
+      }
     };
 
-    storageService.on('ready', handleNewBlock);
+    // Listen for messages from background
+    chrome.runtime.onMessage.addListener(handleMessage);
 
     return () => {
-      storageService.off('ready', handleNewBlock);
+      chrome.runtime.onMessage.removeListener(handleMessage);
     };
   }, []);
 
@@ -84,6 +144,43 @@ export default function App(): JSX.Element {
     };
   }, []);
 
+  // Add keyboard event listener for navigation
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [state.currentView, state.blocks, state.selectedIndex]);
+
+  // Check storage quota periodically
+  useEffect(() => {
+    const checkStorageQuota = async () => {
+      try {
+        const storageService = getStorageService();
+        const usage = await storageService.getUsage();
+
+        // Check if usage exceeds 80% threshold
+        if (usage.quota > 0) {
+          const usagePercent = usage.bytes / usage.quota;
+          setState((prev) => ({
+            ...prev,
+            storageQuotaWarning: usagePercent > 0.8,
+          }));
+        }
+      } catch (error) {
+        console.error('[Sidebar App] Failed to check storage quota:', error);
+      }
+    };
+
+    // Check immediately
+    void checkStorageQuota();
+
+    // Check every 30 seconds
+    const interval = setInterval(checkStorageQuota, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   /**
    * Navigate to detail view
    */
@@ -92,6 +189,7 @@ export default function App(): JSX.Element {
       ...prev,
       currentView: 'detail',
       selectedBlock: block,
+      selectedIndex: -1, // Reset selection when opening detail
     }));
   };
 
@@ -103,6 +201,7 @@ export default function App(): JSX.Element {
       ...prev,
       currentView: 'list',
       selectedBlock: null,
+      selectedIndex: -1, // Reset selection when returning to list
     }));
   };
 
@@ -134,6 +233,9 @@ export default function App(): JSX.Element {
    */
   const performSearch = async (query: string): Promise<void> => {
     if (query.trim()) {
+      // Set searching state
+      setState((prev) => ({ ...prev, isSearching: true }));
+
       // Perform search
       try {
         const storageService = getStorageService();
@@ -143,12 +245,19 @@ export default function App(): JSX.Element {
           ...prev,
           blocks: results,
           currentView: results.length > 0 ? 'list' : 'empty',
+          isSearchMode: true,
+          hasMore: false, // Search doesn't support pagination yet
+          selectedIndex: -1,
+          isSearching: false,
         }));
       } catch (error) {
         console.error('[Sidebar App] Search failed:', error);
+        setState((prev) => ({ ...prev, isSearching: false }));
       }
     } else {
       // Load all blocks when query is empty
+      setState((prev) => ({ ...prev, isSearching: true }));
+
       try {
         const storageService = getStorageService();
         const result = await storageService.query({ page: 1, limit: 50 });
@@ -157,9 +266,16 @@ export default function App(): JSX.Element {
           ...prev,
           blocks: result.items,
           currentView: result.items.length > 0 ? 'list' : 'empty',
+          isSearchMode: false,
+          currentPage: 1,
+          hasMore: result.items.length === 50,
+          selectedIndex: -1,
+          isSearching: false,
+          totalCount: result.total,
         }));
       } catch (error) {
         console.error('[Sidebar App] Failed to load blocks:', error);
+        setState((prev) => ({ ...prev, isSearching: false }));
       }
     }
   };
@@ -186,6 +302,27 @@ export default function App(): JSX.Element {
   };
 
   /**
+   * Show a toast notification
+   */
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info', duration = 3000): void => {
+    const id = `${Date.now()}-${Math.random()}`;
+    const newToast: Toast = { id, message, type, duration };
+
+    setState((prev) => ({
+      ...prev,
+      toasts: [...prev.toasts, newToast],
+    }));
+
+    // Auto-remove toast after duration
+    setTimeout(() => {
+      setState((prev) => ({
+        ...prev,
+        toasts: prev.toasts.filter((t) => t.id !== id),
+      }));
+    }, duration);
+  };
+
+  /**
    * Delete a block
    */
   const handleDelete = async (blockId: string): Promise<void> => {
@@ -193,7 +330,10 @@ export default function App(): JSX.Element {
       const storageService = getStorageService();
       await storageService.delete(blockId);
 
-      // Refresh the list
+      // Show success notification
+      showToast('Clip deleted successfully', 'success');
+
+      // Refresh the list from page 1
       const result = await storageService.query({ page: 1, limit: 50 });
 
       setState((prev) => ({
@@ -201,9 +341,95 @@ export default function App(): JSX.Element {
         blocks: result.items,
         currentView: result.items.length > 0 ? 'list' : 'empty',
         selectedBlock: null,
+        currentPage: 1,
+        hasMore: result.items.length === 50,
+        isSearchMode: false,
+        selectedIndex: -1,
+        searchQuery: '',
+        totalCount: result.total,
       }));
     } catch (error) {
       console.error('[Sidebar App] Failed to delete block:', error);
+      showToast('Failed to delete clip', 'error');
+    }
+  };
+
+  /**
+   * Load more blocks (pagination)
+   */
+  const loadMore = async (): Promise<void> => {
+    if (state.isLoadingMore || !state.hasMore || state.isSearchMode) {
+      return;
+    }
+
+    setState((prev) => ({ ...prev, isLoadingMore: true }));
+    const nextPage = state.currentPage + 1;
+    const storageService = getStorageService();
+
+    try {
+      const result = await storageService.query({ page: nextPage, limit: 50 });
+
+      setState((prev) => ({
+        ...prev,
+        blocks: [...prev.blocks, ...result.items],
+        currentPage: nextPage,
+        hasMore: result.items.length === 50,
+        isLoadingMore: false,
+        selectedIndex: -1,
+      }));
+    } catch (error) {
+      console.error('[Sidebar App] Failed to load more blocks:', error);
+      setState((prev) => ({ ...prev, isLoadingMore: false }));
+    }
+  };
+
+  /**
+   * Handle keyboard navigation
+   */
+  const handleKeyDown = (event: KeyboardEvent): void => {
+    // Only handle keyboard navigation in list view
+    if (state.currentView !== 'list' || state.blocks.length === 0) {
+      return;
+    }
+
+    // Ignore if user is typing in the search box
+    if ((event.target as HTMLElement).tagName === 'INPUT') {
+      return;
+    }
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        setState((prev) => ({
+          ...prev,
+          selectedIndex: Math.min(prev.selectedIndex + 1, prev.blocks.length - 1),
+        }));
+        break;
+
+      case 'ArrowUp':
+        event.preventDefault();
+        setState((prev) => ({
+          ...prev,
+          selectedIndex: Math.max(prev.selectedIndex - 1, -1),
+        }));
+        break;
+
+      case 'Enter':
+        if (state.selectedIndex >= 0 && state.selectedIndex < state.blocks.length) {
+          event.preventDefault();
+          openDetailView(state.blocks[state.selectedIndex]);
+        }
+        break;
+
+      case 'Home':
+        event.preventDefault();
+        setState((prev) => ({ ...prev, selectedIndex: 0 }));
+        break;
+
+      case 'End':
+        event.preventDefault();
+        setState((prev) => ({ ...prev, selectedIndex: prev.blocks.length - 1 }));
+        break;
     }
   };
 
@@ -375,11 +601,24 @@ export default function App(): JSX.Element {
       <div className="sidebar-container">
         <header className="sidebar-header">
           <h1>Block Clipper</h1>
-          <div className="block-count">{state.blocks.length} clips</div>
+          <div className="block-count">
+            {state.isSearchMode
+              ? `${state.blocks.length} results`
+              : `${state.blocks.length}${state.hasMore ? '+' : ''} clips`}
+          </div>
         </header>
 
-        <div className="search-bar">
+        {/* Storage Quota Warning */}
+        {state.storageQuotaWarning && (
+          <div className="quota-warning">
+            ⚠️ Storage almost full. Consider exporting or deleting old clips.
+          </div>
+        )}
+
+        <div className="search-bar" role="search">
+          <label htmlFor="search-input" className="sr-only">Search clips</label>
           <input
+            id="search-input"
             type="text"
             placeholder="Search clips..."
             value={state.searchQuery}
@@ -387,47 +626,76 @@ export default function App(): JSX.Element {
             onCompositionStart={handleCompositionStart}
             onCompositionEnd={handleCompositionEnd}
             className="search-input"
+            disabled={state.isSearching}
+            aria-label="Search clips"
+            aria-describedby="search-description"
           />
-          {state.searchQuery && (
+          <span id="search-description" className="sr-only">
+            Type to search through your clipped content
+          </span>
+          {state.isSearching ? (
+            <div className="search-loading" aria-label="Searching" role="status">
+              <div className="search-spinner" aria-hidden="true" />
+            </div>
+          ) : state.searchQuery ? (
             <button
               onClick={() => void handleSearchChange('')}
               className="clear-button"
               aria-label="Clear search"
+              type="button"
             >
               ✕
             </button>
-          )}
+          ) : null}
         </div>
 
-        <div className="blocks-list">
-          {state.blocks.map((block) => (
+        <div className="blocks-list" role="list" aria-label="Clipped items">
+          {state.blocks.map((block, index) => (
             <div
               key={block.id}
               onClick={() => openDetailView(block)}
-              className="block-card"
-              role="button"
+              className={`block-card ${state.selectedIndex === index ? 'selected' : ''}`}
+              role="listitem"
               tabIndex={0}
+              aria-label={`${getBlockTitle(block)}, clipped ${formatRelativeTime(block.createdAt)} from ${block.source.title}`}
+              aria-selected={state.selectedIndex === index}
               onKeyPress={(e) => {
                 if (e.key === 'Enter') openDetailView(block);
               }}
             >
               <div className="block-header">
                 <h3 className="block-title">{getBlockTitle(block)}</h3>
-                <span className="block-time">{formatRelativeTime(block.createdAt)}</span>
+                <span className="block-time" aria-label={`Clipped ${formatRelativeTime(block.createdAt)}`}>
+                  {formatRelativeTime(block.createdAt)}
+                </span>
               </div>
               <p className="block-preview">{getContentPreview(block.content)}</p>
               <div className="block-source">
-                <span className="source-favicon">
+                <span className="source-favicon" aria-hidden="true">
                   {block.source.favicon ? (
                     <img src={block.source.favicon} alt="" />
                   ) : (
                     <span>📄</span>
                   )}
                 </span>
-                <span className="source-title">{block.source.title}</span>
+                <span className="source-title" aria-label={`From ${block.source.title}`}>
+                  {block.source.title}
+                </span>
               </div>
             </div>
           ))}
+
+          {/* Load More Button */}
+          {state.hasMore && !state.isSearchMode && (
+            <button
+              onClick={() => void loadMore()}
+              disabled={state.isLoadingMore}
+              className="load-more-button"
+              aria-label="Load more clips"
+            >
+              {state.isLoadingMore ? 'Loading...' : 'Load More'}
+            </button>
+          )}
         </div>
 
         <style>{`
@@ -452,6 +720,16 @@ export default function App(): JSX.Element {
             color: #666;
             margin-top: 4px;
           }
+          .quota-warning {
+            padding: 10px 16px;
+            background: #fff3cd;
+            border-bottom: 1px solid #ffc107;
+            font-size: 12px;
+            color: #856404;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
           .search-bar {
             position: relative;
             padding: 12px 16px;
@@ -468,6 +746,10 @@ export default function App(): JSX.Element {
             outline: none;
             border-color: #3498db;
           }
+          .search-input:disabled {
+            background: #f5f5f5;
+            cursor: wait;
+          }
           .clear-button {
             position: absolute;
             right: 24px;
@@ -482,6 +764,22 @@ export default function App(): JSX.Element {
           }
           .clear-button:hover {
             color: #666;
+          }
+          .search-loading {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+          }
+          .search-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
           }
           .blocks-list {
             flex: 1;
@@ -500,6 +798,10 @@ export default function App(): JSX.Element {
             background: #f0f0f0;
           }
           .block-card:focus {
+            outline: 2px solid #3498db;
+            outline-offset: -2px;
+          }
+          .block-card:focus-visible {
             outline: 2px solid #3498db;
             outline-offset: -2px;
           }
@@ -558,7 +860,101 @@ export default function App(): JSX.Element {
             text-overflow: ellipsis;
             white-space: nowrap;
           }
+
+          /* Screen reader only content */
+          .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+          }
+          .block-card.selected {
+            background: #e8f4fd;
+            border: 1px solid #3498db;
+          }
+          .load-more-button {
+            width: calc(100% - 16px);
+            margin: 8px;
+            padding: 10px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #333;
+            cursor: pointer;
+            transition: background 0.15s;
+          }
+          .load-more-button:hover:not(:disabled) {
+            background: #e8e8e8;
+          }
+          .load-more-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+
+          /* Toast Notifications */
+          .toast-container {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            left: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 1000;
+          }
+          .toast {
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: #333;
+            color: #fff;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease-out;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .toast.success {
+            background: #10b981;
+          }
+          .toast.error {
+            background: #ef4444;
+          }
+          .toast.info {
+            background: #3b82f6;
+          }
+          @keyframes slideIn {
+            from {
+              transform: translateY(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateY(0);
+              opacity: 1;
+            }
+          }
         `}</style>
+
+        {/* Toast Notifications */}
+        {state.toasts.length > 0 && (
+          <div className="toast-container">
+            {state.toasts.map((toast) => (
+              <div key={toast.id} className={`toast ${toast.type}`}>
+                {toast.type === 'success' && '✓ '}
+                {toast.type === 'error' && '✗ '}
+                {toast.message}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

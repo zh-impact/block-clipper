@@ -17,7 +17,9 @@ type MessageType =
   | 'SHOW_NOTIFICATION'
   | 'GET_STORAGE_USAGE'
   | 'GET_CLIP_COUNT'
-  | 'OPEN_SIDE_PANEL';
+  | 'OPEN_SIDE_PANEL'
+  | 'NEW_CLIP_ADDED'
+  | 'PING';
 
 /**
  * Message payload
@@ -113,6 +115,30 @@ async function handleClipContent(
       }
     }
 
+    // Notify sidepanel about new clip (if it's open)
+    // We try to send a message, but don't care if it fails (panel might not be open)
+    try {
+      // Check if sender is content script (not sidepanel)
+      if (sender.tab?.id) {
+        // Send message to sidepanel
+        chrome.runtime.sendMessage({
+          type: 'NEW_CLIP_ADDED',
+          data: { block },
+        }).catch(() => {
+          // Ignore errors - sidepanel might not be open
+          console.log('[Background] Sidepanel not open or not listening');
+        });
+      }
+    } catch (error) {
+      // Ignore - sidepanel might not be open
+    }
+
+    // Show system notification for content script context
+    // (sidepanel will show its own toast)
+    if (sender.tab?.id) {
+      showNotification('✓ Content clipped!', 'Saved to Block Clipper');
+    }
+
     return { type: 'CLIP_SUCCESS', data: block };
   } catch (error) {
     console.error('[Background] Failed to clip content:', error);
@@ -133,6 +159,56 @@ function handleNotification(data: { title: string; message: string }): void {
 }
 
 /**
+ * Check if content script is injected in a tab
+ * @param tabId Tab ID
+ * @returns Promise resolving to true if content script is ready
+ */
+async function isContentScriptReady(tabId: number): Promise<boolean> {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'PING' }, () => {
+      // If we get here with no error, content script is responding
+      return !chrome.runtime.lastError;
+    });
+    return !chrome.runtime.lastError;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ensure content script is injected and ready
+ * @param tab Tab to inject content script into
+ */
+async function ensureContentScriptReady(tab: chrome.tabs.Tab): Promise<void> {
+  if (!tab.id) return;
+
+  // First try to ping the content script
+  const isReady = await isContentScriptReady(tab.id);
+  if (isReady) {
+    return;
+  }
+
+  // Content script not ready, try to inject it
+  console.log('[Background] Content script not ready, injecting...');
+
+  try {
+    // Inject content script
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['content-scripts/content.js'],
+    });
+
+    // Wait a bit for the script to initialize
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    console.log('[Background] Content script injected successfully');
+  } catch (error) {
+    console.error('[Background] Failed to inject content script:', error);
+    throw new Error('Failed to prepare page for clipping. Please refresh the page and try again.');
+  }
+}
+
+/**
  * Handle keyboard shortcut command
  * @param command Command name
  * @param tab Tab where command was triggered
@@ -140,7 +216,10 @@ function handleNotification(data: { title: string; message: string }): void {
 async function handleCommand(command: string, tab?: chrome.tabs.Tab): Promise<void> {
   if (command === 'clip-selection' && tab?.id) {
     try {
-      // Send message to content script to trigger clipping (fire and forget)
+      // Ensure content script is ready
+      await ensureContentScriptReady(tab);
+
+      // Send message to content script to trigger clipping
       chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_CLIP' }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('[Background] Failed to trigger clip:', chrome.runtime.lastError.message);
@@ -149,7 +228,10 @@ async function handleCommand(command: string, tab?: chrome.tabs.Tab): Promise<vo
       });
     } catch (error) {
       console.error('[Background] Failed to trigger clip:', error);
-      showNotification('✗ Clipping failed', 'Could not communicate with the page. Try refreshing.');
+      showNotification(
+        '✗ Clipping failed',
+        error instanceof Error ? error.message : 'Could not communicate with the page. Try refreshing.'
+      );
     }
   } else if (command === 'open-sidepanel') {
     try {
@@ -201,7 +283,10 @@ async function handleContextMenuClick(
 ): Promise<void> {
   if (info.menuItemId === 'clip-selection' && tab?.id) {
     try {
-      // Send message to content script to trigger clipping (fire and forget)
+      // Ensure content script is ready
+      await ensureContentScriptReady(tab);
+
+      // Send message to content script to trigger clipping
       chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_CLIP' }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('[Background] Failed to trigger clip from context menu:', chrome.runtime.lastError.message);
@@ -210,7 +295,10 @@ async function handleContextMenuClick(
       });
     } catch (error) {
       console.error('[Background] Failed to trigger clip from context menu:', error);
-      showNotification('✗ Clipping failed', 'Could not communicate with the page. Try refreshing.');
+      showNotification(
+        '✗ Clipping failed',
+        error instanceof Error ? error.message : 'Could not communicate with the page. Try refreshing.'
+      );
     }
   }
 }
