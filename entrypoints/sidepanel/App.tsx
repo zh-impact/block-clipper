@@ -3,7 +3,7 @@
  * @description Main entry point for the Block Clipper sidebar UI
  */
 
-import { type JSX, useState, useEffect } from 'react';
+import { type JSX, useState, useEffect, useRef } from 'react';
 import { getStorageService } from '../../utils/storage';
 import type { Block } from '../../utils/block-model';
 
@@ -21,18 +21,21 @@ interface AppState {
   searchQuery: string;
   blocks: Block[];
   isLoading: boolean;
+  isComposing: boolean; // Track IME composition (Chinese input method)
 }
 
 /**
  * Sidebar App Component
  */
 export default function App(): JSX.Element {
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, setState] = useState<AppState>({
     currentView: 'empty',
     selectedBlock: null,
     searchQuery: '',
     blocks: [],
     isLoading: true,
+    isComposing: false,
   });
 
   // Initialize storage and load blocks
@@ -72,6 +75,15 @@ export default function App(): JSX.Element {
     };
   }, []);
 
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   /**
    * Navigate to detail view
    */
@@ -95,11 +107,32 @@ export default function App(): JSX.Element {
   };
 
   /**
-   * Handle search query change
+   * Handle search query change with debouncing
    */
   const handleSearchChange = async (query: string): Promise<void> => {
+    // Update search query immediately for UI responsiveness
     setState((prev) => ({ ...prev, searchQuery: query }));
 
+    // Don't search while IME is composing (e.g., typing Pinyin)
+    if (state.isComposing) {
+      return;
+    }
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Debounce search to avoid excessive API calls during typing
+    searchTimeoutRef.current = setTimeout(async () => {
+      await performSearch(query);
+    }, 300); // 300ms debounce
+  };
+
+  /**
+   * Perform the actual search operation
+   */
+  const performSearch = async (query: string): Promise<void> => {
     if (query.trim()) {
       // Perform search
       try {
@@ -115,7 +148,7 @@ export default function App(): JSX.Element {
         console.error('[Sidebar App] Search failed:', error);
       }
     } else {
-      // Load all blocks
+      // Load all blocks when query is empty
       try {
         const storageService = getStorageService();
         const result = await storageService.query({ page: 1, limit: 50 });
@@ -129,6 +162,27 @@ export default function App(): JSX.Element {
         console.error('[Sidebar App] Failed to load blocks:', error);
       }
     }
+  };
+
+  /**
+   * Handle IME composition start (e.g., Chinese input method)
+   */
+  const handleCompositionStart = (): void => {
+    setState((prev) => ({ ...prev, isComposing: true }));
+  };
+
+  /**
+   * Handle IME composition end
+   */
+  const handleCompositionEnd = (event: React.CompositionEvent<HTMLInputElement>): void => {
+    // Update state first
+    setState((prev) => ({ ...prev, isComposing: false }));
+
+    // Then immediately perform search with the final composed text
+    // Don't use handleSearchChange to avoid debounce delay after composition
+    const query = event.currentTarget.value;
+    setState((prev) => ({ ...prev, searchQuery: query }));
+    void performSearch(query);
   };
 
   /**
@@ -330,6 +384,8 @@ export default function App(): JSX.Element {
             placeholder="Search clips..."
             value={state.searchQuery}
             onChange={(e) => void handleSearchChange(e.target.value)}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
             className="search-input"
           />
           {state.searchQuery && (

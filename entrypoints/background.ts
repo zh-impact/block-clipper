@@ -153,14 +153,13 @@ async function handleCommand(command: string, tab?: chrome.tabs.Tab): Promise<vo
     }
   } else if (command === 'open-sidepanel') {
     try {
-      // Open the side panel - requires windowId
-      if (chrome.sidePanel) {
-        const window = await chrome.windows.getCurrent();
-        await chrome.sidePanel.open({ windowId: window.id });
+      // Open side panel (no close functionality due to Chrome API limitations)
+      if (chrome.sidePanel && tab?.windowId) {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+        console.log('[Background] Side panel opened for window:', tab.windowId);
       }
     } catch (error) {
       console.error('[Background] Failed to open side panel:', error);
-      showNotification('Side panel failed', 'Could not open the side panel.');
     }
   }
 }

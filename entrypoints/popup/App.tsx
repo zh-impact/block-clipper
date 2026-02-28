@@ -72,14 +72,16 @@ function openOptionsPage(): void {
 }
 
 /**
- * Open side panel
+ * Open side panel and close popup
  */
 async function openSidePanel(): Promise<void> {
   try {
     if (chrome.sidePanel) {
       // Get current window and open side panel directly
-      const window = await chrome.windows.getCurrent();
-      await chrome.sidePanel.open({ windowId: window.id });
+      const chromeWindow = await chrome.windows.getCurrent();
+      await chrome.sidePanel.open({ windowId: chromeWindow.id });
+      // Close popup using JavaScript's window.close()
+      window.close();
     }
   } catch (error) {
     console.error('[Popup] Failed to open side panel:', error);
