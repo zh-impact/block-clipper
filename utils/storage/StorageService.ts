@@ -208,8 +208,21 @@ export class StorageService {
           const cursor = cursorRequest.result;
 
           if (!cursor) {
+            // Sort items by createdAt descending (newest first) before returning
+            const sortedItems = items.sort((a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+
+            // DEBUG: Log sorting result
+            console.log('[DB Query] Cursor finished, sorting items:', {
+              originalCount: items.length,
+              sortedCount: sortedItems.length,
+              firstItem: sortedItems[0] ? { id: sortedItems[0].id, createdAt: sortedItems[0].createdAt } : null,
+              lastItem: sortedItems[sortedItems.length - 1] ? { id: sortedItems[sortedItems.length - 1].id, createdAt: sortedItems[sortedItems.length - 1].createdAt } : null,
+            });
+
             resolve({
-              items,
+              items: sortedItems,
               total,
               page,
               limit,
@@ -230,8 +243,22 @@ export class StorageService {
             items.push(cursor.value);
             cursor.continue();
           } else {
+            // Sort items by createdAt descending (newest first) before returning
+            const sortedItems = items.sort((a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+
+            // DEBUG: Log sorting result
+            console.log('[DB Query] Limit reached, sorting items:', {
+              limitReached: true,
+              itemCount: items.length,
+              sortedCount: sortedItems.length,
+              firstItem: sortedItems[0] ? { id: sortedItems[0].id, createdAt: sortedItems[0].createdAt } : null,
+              lastItem: sortedItems[sortedItems.length - 1] ? { id: sortedItems[sortedItems.length - 1].id, createdAt: sortedItems[sortedItems.length - 1].createdAt } : null,
+            });
+
             resolve({
-              items,
+              items: sortedItems,
               total,
               page,
               limit,
@@ -258,7 +285,7 @@ export class StorageService {
   /**
    * Search blocks by content and metadata
    * @param query Search query options
-   * @returns Array of matching blocks
+   * @returns Array of matching blocks (sorted by createdAt descending)
    */
   async search(query: SearchQuery): Promise<Block[]> {
     const db = await this.ensureInitialized();
@@ -268,17 +295,25 @@ export class StorageService {
       const transaction = db.transaction([STORES.BLOCKS], 'readonly');
       const store = transaction.objectStore(STORES.BLOCKS);
 
+      // Use createdAt index for consistent sorting (newest first)
+      const index = store.index(INDEXES.BY_CREATED);
+
       const results: Block[] = [];
       const lowerSearchTerm = searchTerm.toLowerCase();
 
-      const cursorRequest = store.openCursor();
+      // Open cursor in reverse order (newest first)
+      const cursorRequest = index.openCursor(null, 'prev');
       let count = 0;
 
       cursorRequest.onsuccess = () => {
         const cursor = cursorRequest.result;
 
         if (!cursor || (limit && count >= limit)) {
-          resolve(results);
+          // Sort results by createdAt descending (newest first) before returning
+          const sortedResults = results.sort((a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+          resolve(sortedResults);
           return;
         }
 

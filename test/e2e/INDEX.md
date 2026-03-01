@@ -13,6 +13,7 @@
 3. **[README.md](./README.md)** - 自动化测试说明（参考）
 4. **[content-clipping-scenarios.md](./content-clipping-scenarios.md)** - 内容剪藏功能测试场景（24个场景）
 5. **[trigger-mechanisms-scenarios.md](./trigger-mechanisms-scenarios.md)** - 触发机制测试场景（24个场景）
+6. **[delete-functionality-scenarios.md](./delete-functionality-scenarios.md)** - 删除功能测试场景（12个场景）
 
 ---
 

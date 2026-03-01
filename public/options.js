@@ -124,11 +124,14 @@ async function openDB() {
  * Load all blocks
  */
 async function loadBlocks() {
+  console.log('[Options loadBlocks] Function called');
+
   const transaction = db.transaction([STORE_NAME], 'readonly');
   const store = transaction.objectStore(STORE_NAME);
   const index = store.index(INDEX_NAME);
 
   return new Promise((resolve, reject) => {
+    // Use 'prev' direction to get newest first
     const request = index.openCursor(null, 'prev');
     const blocks = [];
 
@@ -138,7 +141,16 @@ async function loadBlocks() {
         blocks.push(cursor.value);
         cursor.continue();
       } else {
-        resolve(blocks.reverse());
+        // DEBUG: Log before returning
+        console.log('[Options loadBlocks] Returning blocks:', {
+          count: blocks.length,
+          firstItem: blocks[0] ? { id: blocks[0].id, createdAt: blocks[0].createdAt } : null,
+          lastItem: blocks[blocks.length - 1] ? { id: blocks[blocks.length - 1].id, createdAt: blocks[blocks.length - 1].createdAt } : null,
+          order: blocks.map((b, i) => `${i + 1}. ${b.createdAt} - ${b.id.substring(0, 8)}`),
+        });
+
+        // Don't reverse! 'prev' already gives us newest first
+        resolve(blocks);
       }
     };
 

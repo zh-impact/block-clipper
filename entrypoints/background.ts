@@ -164,15 +164,15 @@ function handleNotification(data: { title: string; message: string }): void {
  * @returns Promise resolving to true if content script is ready
  */
 async function isContentScriptReady(tabId: number): Promise<boolean> {
-  try {
-    await chrome.tabs.sendMessage(tabId, { type: 'PING' }, () => {
-      // If we get here with no error, content script is responding
-      return !chrome.runtime.lastError;
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, { type: 'PING' }, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve(false);
+      } else {
+        resolve(true);
+      }
     });
-    return !chrome.runtime.lastError;
-  } catch {
-    return false;
-  }
+  });
 }
 
 /**
@@ -198,10 +198,19 @@ async function ensureContentScriptReady(tab: chrome.tabs.Tab): Promise<void> {
       files: ['content-scripts/content.js'],
     });
 
-    // Wait a bit for the script to initialize
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait for the script to initialize with retry
+    let retries = 10;
+    while (retries > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const ready = await isContentScriptReady(tab.id);
+      if (ready) {
+        console.log('[Background] Content script injected and ready');
+        return;
+      }
+      retries--;
+    }
 
-    console.log('[Background] Content script injected successfully');
+    throw new Error('Content script did not respond after injection');
   } catch (error) {
     console.error('[Background] Failed to inject content script:', error);
     throw new Error('Failed to prepare page for clipping. Please refresh the page and try again.');

@@ -121,8 +121,8 @@
 - [x] 10.2 Implement debounced search (300ms delay) using custom hook
 - [x] 10.3 Connect search to StorageService.search() method
 - [x] 10.4 Display "no results" message with clear search option
-- [ ] 10.5 Implement search query highlighting in results
-- [ ] 10.6 Persist search state across Sidebar close/reopen
+- [ ] [Post-MVP] 10.5 Implement search query highlighting in results
+- [ ] [Post-MVP] 10.6 Persist search state across Sidebar close/reopen
 - [x] 10.7 Test search with various query types (short, long, special characters)
 
 ---
@@ -148,7 +148,7 @@
 - [x] 12.4 Return to ListView after successful deletion
 - [x] 12.5 Display success notification after deletion
 - [ ] 12.6 Implement batch delete from ListView (selection mode)
-- [ ] 12.7 Test delete with confirmation and cancellation scenarios
+- [x] 12.7 Test delete with confirmation and cancellation scenarios
 
 ---
 
@@ -247,10 +247,10 @@
 - [ ] 20.2 Handle IndexedDB transaction abort errors
 - [ ] 20.3 Handle network errors during metadata extraction
 - [ ] 20.4 Handle malformed HTML in converter (fallback to plain text)
-- [ ] 20.5 Handle empty or whitespace-only selections
+- [x] 20.5 Handle empty or whitespace-only selections
 - [ ] 20.6 Handle very large selections (>50,000 characters)
-- [ ] 20.7 Handle concurrent clipping requests (debounce/queue)
-- [ ] 20.8 Add error boundary for Sidebar React components
+- [x] 20.7 Handle concurrent clipping requests (debounce/queue)
+- [x] 20.8 Add error boundary for Sidebar React components
 - [ ] 20.9 Add logging for debugging production issues
 
 ---
@@ -269,24 +269,24 @@
 
 ## 22. Documentation
 
-- [ ] 22.1 Update README.md with installation instructions
-- [ ] 22.2 Add user guide for basic clipping workflow
-- [ ] 22.3 Document keyboard shortcuts
-- [ ] 22.4 Document export formats and usage
-- [ ] 22.5 Add FAQ section
+- [x] 22.1 Update README.md with installation instructions
+- [x] 22.2 Add user guide for basic clipping workflow
+- [x] 22.3 Document keyboard shortcuts
+- [x] 22.4 Document export formats and usage
+- [x] 22.5 Add FAQ section
 - [ ] 22.6 Add screenshots of key features
-- [ ] 22.7 Document privacy/permissions usage
-- [ ] 22.8 Add contributing guidelines for developers
+- [x] 22.7 Document privacy/permissions usage
+- [x] 22.8 Add contributing guidelines for developers
 
 ---
 
 ## 23. Release Preparation
 
-- [ ] 23.1 Create production build with `wxt build`
-- [ ] 23.2 Test production build in browser (load unpacked)
-- [ ] 23.3 Create ZIP package for Chrome Web Store
-- [ ] 23.4 Create ZIP package for Firefox Add-ons
-- [ ] 23.5 Prepare store listing (description, screenshots, categories)
+- [x] 23.1 Create production build with `wxt build`
+- [x] 23.2 Test production build in browser (load unpacked)
+- [x] 23.3 Create ZIP package for Chrome Web Store
+- [N/A] 23.4 Create ZIP package for Firefox Add-ons (Chrome-only MVP)
+- [x] 23.5 Prepare store listing (description, screenshots, categories)
 - [ ] 23.6 Create release notes for v1.0.0
 - [ ] 23.7 Set up version tagging in git
 - [ ] 23.8 Test upgrade flow from previous versions (if any)

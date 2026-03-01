@@ -1,8 +1,9 @@
 {
-  "name": "wxt-react-starter",
-  "description": "manifest.json description",
+  "name": "block-clipper",
+  "displayName": "Block Clipper - Save Web Content Instantly",
+  "description": "Clip, save, and organize web content with one click. Local storage, Markdown export, full-text search. Privacy-focused content management.",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",

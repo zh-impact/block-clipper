@@ -77,13 +77,18 @@ export default function App(): JSX.Element {
         // Load blocks with pagination
         const result = await storageService.query({ page, limit: 50 });
 
+        // Sort by createdAt descending (newest first) to ensure correct order
+        const sortedItems = result.items.sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
         setState((prev) => ({
           ...prev,
-          blocks: append ? [...prev.blocks, ...result.items] : result.items,
-          currentView: result.items.length > 0 ? 'list' : 'empty',
+          blocks: append ? [...prev.blocks, ...sortedItems] : sortedItems,
+          currentView: sortedItems.length > 0 ? 'list' : 'empty',
           isLoading: false,
           currentPage: page,
-          hasMore: result.items.length === 50, // If we got 50 items, there might be more
+          hasMore: sortedItems.length === 50, // If we got 50 items, there might be more
           isLoadingMore: false,
           selectedIndex: -1, // Reset selection when data changes
           totalCount: result.total,
@@ -112,9 +117,14 @@ export default function App(): JSX.Element {
             const storageService = getStorageService();
             const result = await storageService.query({ page: 1, limit: 50 });
 
+            // Sort by createdAt descending (newest first) to ensure correct order
+            const sortedItems = result.items.sort((a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+
             setState((prev) => ({
               ...prev,
-              blocks: result.items,
+              blocks: sortedItems,
               currentView: 'list',
               totalCount: result.total,
             }));
@@ -241,10 +251,15 @@ export default function App(): JSX.Element {
         const storageService = getStorageService();
         const results = await storageService.search({ query, limit: 50 });
 
+        // Sort by createdAt descending (newest first) to ensure correct order
+        const sortedResults = results.sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
         setState((prev) => ({
           ...prev,
-          blocks: results,
-          currentView: results.length > 0 ? 'list' : 'empty',
+          blocks: sortedResults,
+          currentView: sortedResults.length > 0 ? 'list' : 'empty',
           isSearchMode: true,
           hasMore: false, // Search doesn't support pagination yet
           selectedIndex: -1,
@@ -262,13 +277,18 @@ export default function App(): JSX.Element {
         const storageService = getStorageService();
         const result = await storageService.query({ page: 1, limit: 50 });
 
+        // Sort by createdAt descending (newest first) to ensure correct order
+        const sortedItems = result.items.sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
         setState((prev) => ({
           ...prev,
-          blocks: result.items,
-          currentView: result.items.length > 0 ? 'list' : 'empty',
+          blocks: sortedItems,
+          currentView: sortedItems.length > 0 ? 'list' : 'empty',
           isSearchMode: false,
           currentPage: 1,
-          hasMore: result.items.length === 50,
+          hasMore: sortedItems.length === 50,
           selectedIndex: -1,
           isSearching: false,
           totalCount: result.total,
@@ -336,13 +356,18 @@ export default function App(): JSX.Element {
       // Refresh the list from page 1
       const result = await storageService.query({ page: 1, limit: 50 });
 
+      // Sort by createdAt descending (newest first) to ensure correct order
+      const sortedItems = result.items.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
       setState((prev) => ({
         ...prev,
-        blocks: result.items,
-        currentView: result.items.length > 0 ? 'list' : 'empty',
+        blocks: sortedItems,
+        currentView: sortedItems.length > 0 ? 'list' : 'empty',
         selectedBlock: null,
         currentPage: 1,
-        hasMore: result.items.length === 50,
+        hasMore: sortedItems.length === 50,
         isSearchMode: false,
         selectedIndex: -1,
         searchQuery: '',
@@ -369,11 +394,16 @@ export default function App(): JSX.Element {
     try {
       const result = await storageService.query({ page: nextPage, limit: 50 });
 
+      // Sort by createdAt descending (newest first) to ensure correct order
+      const sortedItems = result.items.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
       setState((prev) => ({
         ...prev,
-        blocks: [...prev.blocks, ...result.items],
+        blocks: [...prev.blocks, ...sortedItems],
         currentPage: nextPage,
-        hasMore: result.items.length === 50,
+        hasMore: sortedItems.length === 50,
         isLoadingMore: false,
         selectedIndex: -1,
       }));
