@@ -7,11 +7,7 @@ export default defineConfig({
     name: 'Block Clipper',
     description: 'Clip, save, and organize web content instantly. Local storage, Markdown export, full-text search. Privacy-focused.',
     permissions: ['activeTab', 'storage', 'scripting', 'contextMenus', 'sidePanel', 'notifications', 'windows'],
-    options_page: 'options.html',
-    options_ui: {
-      page: 'options.html',
-      open_in_tab: true,
-    },
+    options_page: 'options-page.html',
     side_panel: {
       default_path: 'sidepanel.html',
     },
