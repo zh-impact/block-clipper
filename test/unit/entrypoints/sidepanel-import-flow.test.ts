@@ -71,4 +71,29 @@ describe('sidepanel import flow', () => {
   it('returns oversized file error', () => {
     expect(getImportFileSizeError(11 * 1024 * 1024)).toContain('Maximum supported size');
   });
+
+  it('supports markdown import flow', async () => {
+    const storage = {
+      importRecords: vi.fn(async () => ({
+        imported: 1,
+        skipped: 0,
+        failed: 0,
+        errors: [],
+      })),
+    };
+
+    const content = `---
+type: text
+created_at: 2026-01-01T00:00:00.000Z
+source_url: https://example.com
+source_title: Example
+---
+
+Hello markdown`; 
+
+    const result = await runImportFlow(content, storage, 'markdown');
+
+    expect(storage.importRecords).toHaveBeenCalledTimes(1);
+    expect(result.imported).toBe(1);
+  });
 });

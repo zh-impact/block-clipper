@@ -30,9 +30,32 @@
       flex-shrink: 0;
     }
 
+    .header-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
     h1 {
-      margin: 0 0 12px 0;
+      margin: 0;
       font-size: 20px;
+    }
+
+    .density-toggle {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .density-toggle:hover {
+      background: #f8fafc;
     }
 
     #search {
@@ -49,24 +72,106 @@
       border-color: #3498db;
     }
 
-    #export-buttons {
+    .toolbar-grid {
       display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .transfer-group {
+      display: inline-flex;
       align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border: 1px solid #2563eb;
+      background: #f8fbff;
+      border-radius: 8px;
     }
 
-    .export-button {
-      padding: 6px 12px;
-      background: #3498db;
-      color: white;
-      border: none;
-      border-radius: 4px;
+    .transfer-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1e3a8a;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+
+    .format-select {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #1e293b;
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .icon-button {
+      min-width: 64px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #2563eb;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 13px;
-      transition: background 0.15s;
+      transition: background .15s;
     }
 
-    .export-button:hover {
-      background: #2980b9;
+    .icon-button:hover {
+      background: #dbeafe;
+    }
+
+    .icon-button:disabled,
+    .format-select:disabled {
+      opacity: .7;
+      cursor: wait;
+    }
+
+    .toolbar-hint {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    body.density-compact header {
+      padding: 12px 16px;
+    }
+
+    body.density-compact main {
+      padding: 12px 16px;
+    }
+
+    body.density-compact .transfer-group {
+      padding: 4px 6px;
+      gap: 4px;
+    }
+
+    body.density-compact .icon-button {
+      min-width: 56px;
+      height: 26px;
+    }
+
+    body.density-compact .format-select,
+    body.density-compact .transfer-label,
+    body.density-compact .toolbar-hint,
+    body.density-compact .density-toggle {
+      font-size: 10px;
+    }
+
+    body.density-compact .transfer-label,
+    body.density-compact .format-select,
+    body.density-compact .toolbar-hint {
+      display: none;
+    }
+
+    body.density-compact .transfer-group {
+      border: none;
+      background: transparent;
+      padding: 0;
     }
 
     main {
@@ -282,15 +387,34 @@
 </head>
 <body>
   <header>
-    <h1>📋 Block Clipper</h1>
-    <input type="text" id="search" placeholder="Search clips...">
-    <div id="export-buttons" style="display: none; margin-top: 12px; gap: 8px;">
-      <span style="font-size: 12px; color: #666; align-self: center;">
-        Export <span id="export-count">0</span>:
-      </span>
-      <button id="export-json" class="export-button">JSON</button>
-      <button id="export-markdown" class="export-button">Markdown</button>
+    <div class="header-top-row">
+      <h1>📋 Block Clipper</h1>
+      <button id="density-toggle" class="density-toggle" type="button">Compact</button>
     </div>
+    <input type="text" id="search" placeholder="Search clips...">
+    <div id="toolbar" class="toolbar-grid" style="display: none;">
+      <section class="transfer-group" aria-label="Export controls">
+        <span class="transfer-label">Export</span>
+        <select id="export-format" class="format-select" aria-label="Export format">
+          <option value="json">JSON</option>
+          <option value="markdown">Markdown</option>
+        </select>
+        <button id="export-file" class="icon-button" type="button" aria-label="Export to file" title="Export to file">File ↓</button>
+        <button id="export-clipboard" class="icon-button" type="button" aria-label="Copy to clipboard" title="Copy to clipboard">Clip ↓</button>
+      </section>
+
+      <section class="transfer-group" aria-label="Import controls">
+        <span class="transfer-label">Import</span>
+        <select id="import-format" class="format-select" aria-label="Import format">
+          <option value="json">JSON</option>
+          <option value="markdown">Markdown</option>
+        </select>
+        <button id="import-file" class="icon-button" type="button" aria-label="Import from file" title="Import from file">File ↑</button>
+        <button id="import-clipboard" class="icon-button" type="button" aria-label="Import from clipboard" title="Import from clipboard">Clip ↑</button>
+      </section>
+    </div>
+    <div class="toolbar-hint">File and clipboard actions use the currently selected format.</div>
+    <input id="import-input" type="file" style="display: none;" />
   </header>
 
   <main>

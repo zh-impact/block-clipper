@@ -2,6 +2,7 @@ import type { BlockType, BlockSource } from '../block-model';
 
 const SUPPORTED_TYPES: BlockType[] = ['text', 'heading', 'code', 'quote', 'list'];
 export const MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
+export type ImportFormat = 'json' | 'markdown';
 
 export interface ImportRecord {
   type: BlockType;
@@ -31,6 +32,13 @@ interface ExportLikeRecord {
   };
   createdAt?: unknown;
   metadata?: unknown;
+}
+
+interface MarkdownFrontmatter {
+  type?: string;
+  created_at?: string;
+  source_url?: string;
+  source_title?: string;
 }
 
 export function normalizeImportTimestamp(input: unknown): string {
@@ -129,6 +137,122 @@ export function parseImportJsonContent(content: string): ImportParseResult {
   });
 
   return { validRecords, failures };
+}
+
+function parseMarkdownFrontmatter(frontmatter: string): MarkdownFrontmatter {
+  const result: MarkdownFrontmatter = {};
+  const lines = frontmatter.split('\n');
+
+  lines.forEach((line) => {
+    const separatorIndex = line.indexOf(':');
+    if (separatorIndex <= 0) {
+      return;
+    }
+
+    const key = line.slice(0, separatorIndex).trim();
+    const value = line.slice(separatorIndex + 1).trim();
+
+    if (key === 'type' || key === 'created_at' || key === 'source_url' || key === 'source_title') {
+      result[key] = value;
+    }
+  });
+
+  return result;
+}
+
+function normalizeMarkdownBody(body: string): string {
+  const lines = body.trim().split('\n');
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+
+  const maybeSavedLine = lines[lines.length - 1] || '';
+  if (maybeSavedLine.startsWith('*Saved:')) {
+    lines.pop();
+  }
+
+  const maybeFromLine = lines[lines.length - 1] || '';
+  if (maybeFromLine.startsWith('*From:')) {
+    lines.pop();
+  }
+
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+
+  return lines.join('\n').trim();
+}
+
+function parseMarkdownDocument(doc: string, index: number): { value?: ImportRecord; error?: string } {
+  const match = doc.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!match) {
+    return { error: `Record ${index + 1}: markdown block is missing frontmatter` };
+  }
+
+  const [, frontmatterRaw, bodyRaw] = match;
+  const frontmatter = parseMarkdownFrontmatter(frontmatterRaw);
+  const content = normalizeMarkdownBody(bodyRaw);
+
+  return validateAndNormalizeRecord(
+    {
+      type: frontmatter.type,
+      content,
+      source: {
+        url: frontmatter.source_url,
+        title: frontmatter.source_title,
+      },
+      createdAt: frontmatter.created_at,
+      metadata: {},
+    },
+    index
+  );
+}
+
+export function parseImportMarkdownContent(content: string): ImportParseResult {
+  if (typeof content !== 'string' || content.trim().length === 0) {
+    return {
+      validRecords: [],
+      failures: [{ index: null, reason: 'Import file is empty' }],
+    };
+  }
+
+  const documents = content
+    .split(/\n\n---\n\n(?=---\n)/)
+    .map((doc) => doc.trim())
+    .filter(Boolean);
+
+  if (documents.length === 0) {
+    return {
+      validRecords: [],
+      failures: [{ index: null, reason: 'Import markdown format is invalid' }],
+    };
+  }
+
+  const validRecords: ImportRecord[] = [];
+  const failures: ImportParseFailure[] = [];
+
+  documents.forEach((doc, index) => {
+    const result = parseMarkdownDocument(doc, index);
+    if (result.value) {
+      validRecords.push(result.value);
+      return;
+    }
+
+    failures.push({
+      index,
+      reason: result.error || `Record ${index + 1}: invalid markdown block`,
+    });
+  });
+
+  return { validRecords, failures };
+}
+
+export function parseImportContent(content: string, format: ImportFormat): ImportParseResult {
+  if (format === 'markdown') {
+    return parseImportMarkdownContent(content);
+  }
+
+  return parseImportJsonContent(content);
 }
 
 export function validateImportFileSize(sizeInBytes: number): string | null {

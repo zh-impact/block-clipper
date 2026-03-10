@@ -4,6 +4,7 @@
  */
 
 import type { Block } from '../block-model';
+import { copyTextToClipboard } from '../clipboard';
 
 /**
  * Export format type
@@ -163,4 +164,34 @@ export function exportAndDownload(blocks: Block[], format: ExportFormat): void {
     const content = exportBlocksToMarkdown(blocks);
     downloadFile(content, filename);
   }
+}
+
+export async function exportBlocksJSONToClipboard(
+  blocks: Block[],
+  options: ExportOptions = { format: 'json' }
+): Promise<{ ok: boolean; error?: string; content?: string }> {
+  const content = exportBlocksToJSON(blocks, options);
+  const result = await copyTextToClipboard(content);
+
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+
+  return { ok: true, content };
+}
+
+export async function exportBlocksToClipboard(
+  blocks: Block[],
+  format: ExportFormat
+): Promise<{ ok: boolean; error?: string; content?: string }> {
+  const content = format === 'json'
+    ? exportBlocksToJSON(blocks, { format: 'json' })
+    : exportBlocksToMarkdown(blocks, { format: 'markdown' });
+
+  const result = await copyTextToClipboard(content);
+  if (!result.ok) {
+    return { ok: false, error: result.error };
+  }
+
+  return { ok: true, content };
 }

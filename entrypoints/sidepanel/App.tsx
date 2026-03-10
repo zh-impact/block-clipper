@@ -4,10 +4,15 @@
  */
 
 import { type JSX, type ChangeEvent, useState, useEffect, useRef } from 'react';
+import { IconClipboardCopy, IconClipboardPlus, IconFileExport, IconFileImport } from '@tabler/icons-react';
 import { getStorageService } from '../../utils/storage';
 import type { Block } from '../../utils/block-model';
 import type { ImportSummary } from '../../utils/storage';
+import { downloadFile, exportBlocksToJSON, exportBlocksToMarkdown, generateExportFilename } from '../../utils/exporter';
+import type { ExportFormat } from '../../utils/exporter';
 import { getImportFileSizeError, runImportFlow } from './importFlow';
+import { exportBlocksToClipboard, importFromClipboard } from './clipboardFlow';
+import type { ImportFormat } from '../../utils/importer';
 
 /**
  * View types for routing
@@ -48,6 +53,10 @@ interface AppState {
   storageQuotaWarning: boolean; // Show storage quota warning
   totalCount: number; // Total number of clips in storage
   isImporting: boolean;
+  isExporting: boolean;
+  exportFormat: ExportFormat;
+  importFormat: ImportFormat;
+  density: 'standard' | 'compact';
   lastImportReport: ImportReport | null;
 }
 
@@ -74,6 +83,10 @@ export default function App(): JSX.Element {
     storageQuotaWarning: false,
     totalCount: 0,
     isImporting: false,
+    isExporting: false,
+    exportFormat: 'json',
+    importFormat: 'json',
+    density: 'standard',
     lastImportReport: null,
   });
 
@@ -374,12 +387,165 @@ export default function App(): JSX.Element {
     }));
   };
 
+  const loadAllBlocksForExport = async (): Promise<Block[]> => {
+    const storageService = getStorageService();
+    const allBlocks: Block[] = [];
+    let page = 1;
+    const limit = 200;
+
+    while (true) {
+      const result = await storageService.query({ page, limit });
+      allBlocks.push(...result.items);
+
+      if (page >= result.totalPages || result.items.length === 0) {
+        break;
+      }
+
+      page++;
+    }
+
+    return allBlocks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  };
+
+  const getImportAcceptByFormat = (): string => {
+    const format = state.density === 'compact' ? 'json' : state.importFormat;
+
+    if (format === 'markdown') {
+      return 'text/markdown,.md,.markdown,text/plain';
+    }
+
+    return 'application/json,.json';
+  };
+
+  const setImportFailureReport = (message: string): void => {
+    setState((prev) => ({
+      ...prev,
+      isImporting: false,
+      lastImportReport: {
+        imported: 0,
+        skipped: 0,
+        failed: 1,
+        parseFailures: [message],
+        errors: [message],
+      },
+    }));
+  };
+
+  const importContent = async (content: string, format: ImportFormat, sourceLabel: 'File' | 'Clipboard'): Promise<void> => {
+    const storageService = getStorageService();
+    const report = await runImportFlow(content, storageService, format);
+
+    setState((prev) => ({
+      ...prev,
+      isImporting: false,
+      lastImportReport: report,
+    }));
+
+    if (report.imported > 0) {
+      await reloadFirstPage();
+    }
+
+    showToast(
+      `${sourceLabel} import (${format.toUpperCase()}): ${report.imported} imported, ${report.skipped} skipped, ${report.failed} failed`,
+      report.failed > 0 ? 'info' : 'success',
+      4500
+    );
+  };
+
+  const handleExportFileClick = async (format: ExportFormat = state.exportFormat): Promise<void> => {
+    if (state.isExporting) {
+      return;
+    }
+
+    setState((prev) => ({ ...prev, isExporting: true }));
+
+    try {
+      const blocks = await loadAllBlocksForExport();
+      if (blocks.length === 0) {
+        showToast('No clips to export', 'info');
+        return;
+      }
+
+      const content = format === 'json'
+        ? exportBlocksToJSON(blocks)
+        : exportBlocksToMarkdown(blocks);
+      const filename = generateExportFilename(format, blocks.length);
+      downloadFile(content, filename);
+      showToast(`Exported ${blocks.length} clips to ${format.toUpperCase()} file`, 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to export file', 'error');
+    } finally {
+      setState((prev) => ({ ...prev, isExporting: false }));
+    }
+  };
+
+  const handleExportClipboardClick = async (format: ExportFormat = state.exportFormat): Promise<void> => {
+    if (state.isExporting) {
+      return;
+    }
+
+    setState((prev) => ({ ...prev, isExporting: true }));
+
+    try {
+      const blocks = await loadAllBlocksForExport();
+      if (blocks.length === 0) {
+        showToast('No clips to export', 'info');
+        return;
+      }
+
+      const result = await exportBlocksToClipboard(blocks, format);
+      if (!result.ok) {
+        throw new Error(result.error || 'Failed to copy export data to clipboard');
+      }
+
+      showToast(`Copied ${blocks.length} ${format.toUpperCase()} clips to clipboard`, 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Clipboard export failed', 'error');
+    } finally {
+      setState((prev) => ({ ...prev, isExporting: false }));
+    }
+  };
+
   const handleImportClick = (): void => {
     if (state.isImporting) {
       return;
     }
 
+    importInputRef.current?.setAttribute('accept', getImportAcceptByFormat());
     importInputRef.current?.click();
+  };
+
+  const handleImportClipboardClick = async (format: ImportFormat = state.importFormat): Promise<void> => {
+    if (state.isImporting) {
+      return;
+    }
+
+    setState((prev) => ({ ...prev, isImporting: true }));
+
+    try {
+      const storageService = getStorageService();
+      const report = await importFromClipboard(storageService, format);
+
+      setState((prev) => ({
+        ...prev,
+        isImporting: false,
+        lastImportReport: report,
+      }));
+
+      if (report.imported > 0) {
+        await reloadFirstPage();
+      }
+
+      showToast(
+        `Clipboard import (${format.toUpperCase()}): ${report.imported} imported, ${report.skipped} skipped, ${report.failed} failed`,
+        report.failed > 0 ? 'info' : 'success',
+        4500
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Clipboard import failed';
+      setImportFailureReport(message);
+      showToast(message, 'error');
+    }
   };
 
   const handleImportFileChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
@@ -411,39 +577,11 @@ export default function App(): JSX.Element {
 
     try {
       const content = await file.text();
-      const storageService = getStorageService();
-      const report = await runImportFlow(content, storageService);
-
-      setState((prev) => ({
-        ...prev,
-        isImporting: false,
-        lastImportReport: report,
-      }));
-
-      if (report.imported > 0) {
-        await reloadFirstPage();
-      }
-
-      showToast(
-        `Import complete: ${report.imported} imported, ${report.skipped} skipped, ${report.failed} failed`,
-        report.failed > 0 ? 'info' : 'success',
-        4500
-      );
+      const format = state.density === 'compact' ? 'json' : state.importFormat;
+      await importContent(content, format, 'File');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Import failed';
-
-      setState((prev) => ({
-        ...prev,
-        isImporting: false,
-        lastImportReport: {
-          imported: 0,
-          skipped: 0,
-          failed: 1,
-          parseFailures: [message],
-          errors: [message],
-        },
-      }));
-
+      setImportFailureReport(message);
       showToast(message, 'error');
     }
   };
@@ -719,29 +857,122 @@ export default function App(): JSX.Element {
    */
   if (state.currentView === 'list') {
     return (
-      <div className="sidebar-container">
+      <div className={`sidebar-container density-${state.density}`}>
         <header className="sidebar-header">
-          <div className="header-top-row">
+          <div className="header-title-row">
             <h1>Block Clipper</h1>
-            <button
-              onClick={handleImportClick}
-              className="import-button"
-              disabled={state.isImporting}
-              type="button"
-              aria-label="Import clips from JSON"
-            >
-              {state.isImporting ? 'Importing...' : 'Import JSON'}
-            </button>
+            <div className="header-meta">
+              <div className="block-count">
+                {state.isSearchMode
+                  ? `${state.blocks.length} results`
+                  : `${state.blocks.length}${state.hasMore ? '+' : ''} clips`}
+              </div>
+              <button
+                className="density-toggle-button"
+                type="button"
+                onClick={() => {
+                  setState((prev) => ({
+                    ...prev,
+                    density: prev.density === 'standard' ? 'compact' : 'standard',
+                  }));
+                }}
+                aria-label={`Switch to ${state.density === 'standard' ? 'compact' : 'standard'} layout`}
+              >
+                {state.density === 'standard' ? 'Compact' : 'Standard'}
+              </button>
+            </div>
           </div>
-          <div className="block-count">
-            {state.isSearchMode
-              ? `${state.blocks.length} results`
-              : `${state.blocks.length}${state.hasMore ? '+' : ''} clips`}
+
+          <div className="transfer-grid">
+            <section className="transfer-group" aria-label="Export controls">
+              <div className="transfer-group-label">Export</div>
+              {state.density === 'standard' && (
+                <select
+                  className="format-select"
+                  value={state.exportFormat}
+                  onChange={(event) => {
+                    const nextFormat = event.target.value as ExportFormat;
+                    setState((prev) => ({ ...prev, exportFormat: nextFormat }));
+                  }}
+                  aria-label="Export format"
+                  disabled={state.isExporting}
+                >
+                  <option value="json">JSON</option>
+                  <option value="markdown">Markdown</option>
+                </select>
+              )}
+              <button
+                onClick={() => void handleExportFileClick(state.density === 'compact' ? 'json' : state.exportFormat)}
+                className="icon-action-button"
+                disabled={state.isExporting}
+                type="button"
+                aria-label={`Export ${(state.density === 'compact' ? 'json' : state.exportFormat).toUpperCase()} to file`}
+                title={`Export ${(state.density === 'compact' ? 'json' : state.exportFormat).toUpperCase()} to file`}
+              >
+                <IconFileExport size={16} stroke={2} aria-hidden="true" />
+              </button>
+              <button
+                onClick={() => void handleExportClipboardClick(state.density === 'compact' ? 'json' : state.exportFormat)}
+                className="icon-action-button"
+                disabled={state.isExporting}
+                type="button"
+                aria-label={`Copy ${(state.density === 'compact' ? 'json' : state.exportFormat).toUpperCase()} to clipboard`}
+                title={`Copy ${(state.density === 'compact' ? 'json' : state.exportFormat).toUpperCase()} to clipboard`}
+              >
+                <IconClipboardCopy size={16} stroke={2} aria-hidden="true" />
+              </button>
+            </section>
+
+            <section className="transfer-group" aria-label="Import controls">
+              <div className="transfer-group-label">Import</div>
+              {state.density === 'standard' && (
+                <select
+                  className="format-select"
+                  value={state.importFormat}
+                  onChange={(event) => {
+                    const nextFormat = event.target.value as ImportFormat;
+                    setState((prev) => ({ ...prev, importFormat: nextFormat }));
+                  }}
+                  aria-label="Import format"
+                  disabled={state.isImporting}
+                >
+                  <option value="json">JSON</option>
+                  <option value="markdown">Markdown</option>
+                </select>
+              )}
+              <button
+                onClick={handleImportClick}
+                className="icon-action-button"
+                disabled={state.isImporting}
+                type="button"
+                aria-label={`Import ${(state.density === 'compact' ? 'json' : state.importFormat).toUpperCase()} from file`}
+                title={`Import ${(state.density === 'compact' ? 'json' : state.importFormat).toUpperCase()} from file`}
+              >
+                <IconFileImport size={16} stroke={2} aria-hidden="true" />
+              </button>
+              <button
+                onClick={() => void handleImportClipboardClick(state.density === 'compact' ? 'json' : state.importFormat)}
+                className="icon-action-button"
+                disabled={state.isImporting}
+                type="button"
+                aria-label={`Import ${(state.density === 'compact' ? 'json' : state.importFormat).toUpperCase()} from clipboard`}
+                title={`Import ${(state.density === 'compact' ? 'json' : state.importFormat).toUpperCase()} from clipboard`}
+              >
+                <IconClipboardPlus size={16} stroke={2} aria-hidden="true" />
+              </button>
+            </section>
           </div>
+
+          {state.density === 'standard' && (
+            <div className="transfer-hint">
+              File and clipboard actions use the currently selected format.
+            </div>
+          )}
+
           <input
             ref={importInputRef}
             type="file"
-            accept="application/json,.json"
+            accept={getImportAcceptByFormat()}
             style={{ display: 'none' }}
             onChange={(e) => void handleImportFileChange(e)}
           />
@@ -864,39 +1095,121 @@ export default function App(): JSX.Element {
             padding: 16px;
             border-bottom: 1px solid #e5e5e5;
           }
-          .header-top-row {
+          .header-title-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
+            gap: 8px;
+          }
+          .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .transfer-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
           }
           .sidebar-header h1 {
             font-size: 18px;
             font-weight: 600;
             margin: 0;
           }
-          .import-button {
+          .transfer-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border: 1px solid #2563eb;
+            background: #f8fbff;
+            border-radius: 8px;
+          }
+          .transfer-group-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #1e3a8a;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+          }
+          .format-select {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #1e293b;
+            border-radius: 6px;
+            padding: 4px 6px;
+            font-size: 12px;
+            font-weight: 600;
+          }
+          .icon-action-button {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             border: 1px solid #2563eb;
             background: #eff6ff;
             color: #1d4ed8;
             border-radius: 6px;
-            padding: 6px 10px;
-            font-size: 12px;
-            font-weight: 600;
             cursor: pointer;
             transition: background 0.15s;
           }
-          .import-button:hover:not(:disabled) {
+          .icon-action-button:hover:not(:disabled) {
             background: #dbeafe;
           }
-          .import-button:disabled {
+          .icon-action-button:disabled,
+          .format-select:disabled {
             opacity: 0.7;
             cursor: wait;
+          }
+          .transfer-hint {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 8px;
           }
           .block-count {
             font-size: 12px;
             color: #666;
-            margin-top: 4px;
+          }
+          .density-toggle-button {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            cursor: pointer;
+          }
+          .density-toggle-button:hover {
+            background: #f8fafc;
+          }
+          .density-compact .sidebar-header {
+            padding: 12px;
+          }
+          .density-compact .transfer-group {
+            padding: 0;
+            gap: 4px;
+            border: none;
+            background: transparent;
+          }
+          .density-compact .transfer-group-label {
+            display: none;
+          }
+          .density-compact .format-select {
+            padding: 2px 4px;
+            font-size: 11px;
+          }
+          .density-compact .icon-action-button {
+            width: 26px;
+            height: 26px;
+          }
+          .density-compact .transfer-hint,
+          .density-compact .block-count,
+          .density-compact .transfer-group-label,
+          .density-compact .density-toggle-button {
+            font-size: 10px;
           }
           .import-report {
             margin: 8px 16px 0;

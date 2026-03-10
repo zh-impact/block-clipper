@@ -11,6 +11,27 @@ const INDEX_NAME = 'by-created'; // Must match INDEXES.BY_CREATED in schema.ts
 
 let db = null;
 let allBlocksCache = []; // Cache for export
+let exportFormat = 'json';
+let importFormat = 'json';
+let isImporting = false;
+let isExporting = false;
+let densityMode = 'standard';
+
+function applyDensityMode() {
+  document.body.classList.toggle('density-compact', densityMode === 'compact');
+  const toggle = document.getElementById('density-toggle');
+  if (toggle) {
+    toggle.textContent = densityMode === 'compact' ? 'Standard' : 'Compact';
+  }
+}
+
+function getEffectiveExportFormat() {
+  return densityMode === 'compact' ? 'json' : exportFormat;
+}
+
+function getEffectiveImportFormat() {
+  return densityMode === 'compact' ? 'json' : importFormat;
+}
 
 // Export utility functions
 function generateExportFilename(format, count) {
@@ -67,34 +88,291 @@ function downloadFile(content, filename) {
   URL.revokeObjectURL(url);
 }
 
-function exportAsJSON() {
-  if (allBlocksCache.length === 0) {
-    alert('No clips to export');
-    return;
+async function copyToClipboard(content) {
+  if (!navigator.clipboard) {
+    throw new Error('Clipboard API is not available. Please use file export.');
   }
 
-  if (!confirm(`Export ${allBlocksCache.length} clips as JSON?`)) {
-    return;
-  }
-
-  const filename = generateExportFilename('json', allBlocksCache.length);
-  const content = exportBlocksToJSON(allBlocksCache);
-  downloadFile(content, filename);
+  await navigator.clipboard.writeText(content);
 }
 
-function exportAsMarkdown() {
-  if (allBlocksCache.length === 0) {
-    alert('No clips to export');
+function parseMarkdownFrontmatter(frontmatterRaw) {
+  const result = {};
+  frontmatterRaw.split('\n').forEach((line) => {
+    const idx = line.indexOf(':');
+    if (idx <= 0) {
+      return;
+    }
+
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim();
+    if (['type', 'created_at', 'source_url', 'source_title'].includes(key)) {
+      result[key] = value;
+    }
+  });
+
+  return result;
+}
+
+function normalizeMarkdownBody(body) {
+  const lines = body.trim().split('\n');
+
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+
+  if ((lines[lines.length - 1] || '').startsWith('*Saved:')) {
+    lines.pop();
+  }
+
+  if ((lines[lines.length - 1] || '').startsWith('*From:')) {
+    lines.pop();
+  }
+
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    lines.pop();
+  }
+
+  return lines.join('\n').trim();
+}
+
+function parseMarkdownImport(content) {
+  const docs = content
+    .split(/\n\n---\n\n(?=---\n)/)
+    .map((doc) => doc.trim())
+    .filter(Boolean);
+
+  if (docs.length === 0) {
+    throw new Error('Import markdown format is invalid');
+  }
+
+  return docs.map((doc, index) => {
+    const match = doc.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+    if (!match) {
+      throw new Error(`Record ${index + 1}: markdown block is missing frontmatter`);
+    }
+
+    const [, frontmatterRaw, bodyRaw] = match;
+    const frontmatter = parseMarkdownFrontmatter(frontmatterRaw);
+    const parsed = {
+      type: frontmatter.type,
+      content: normalizeMarkdownBody(bodyRaw),
+      source: {
+        url: frontmatter.source_url,
+        title: frontmatter.source_title,
+      },
+      createdAt: frontmatter.created_at || new Date().toISOString(),
+    };
+
+    if (!parsed.type || !parsed.content || !parsed.source.url || !parsed.source.title) {
+      throw new Error(`Record ${index + 1}: missing required fields`);
+    }
+
+    return parsed;
+  });
+}
+
+function parseImportContent(content, format) {
+  if (!content || !content.trim()) {
+    throw new Error('Import file is empty');
+  }
+
+  if (format === 'markdown') {
+    return parseMarkdownImport(content);
+  }
+
+  const parsed = JSON.parse(content);
+  if (!Array.isArray(parsed)) {
+    throw new Error('Import JSON must be an array of records');
+  }
+
+  return parsed;
+}
+
+function normalizeImportRecord(record, index) {
+  const allowedTypes = ['text', 'heading', 'code', 'quote', 'list'];
+  if (!record || typeof record !== 'object') {
+    throw new Error(`Record ${index + 1}: must be an object`);
+  }
+
+  if (!allowedTypes.includes(record.type)) {
+    throw new Error(`Record ${index + 1}: unsupported or missing block type`);
+  }
+
+  if (typeof record.content !== 'string' || !record.content.trim()) {
+    throw new Error(`Record ${index + 1}: content is required`);
+  }
+
+  if (!record.source || typeof record.source.url !== 'string' || typeof record.source.title !== 'string') {
+    throw new Error(`Record ${index + 1}: source.url and source.title are required`);
+  }
+
+  const normalizedCreatedAt = (() => {
+    const date = new Date(record.createdAt);
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  })();
+
+  return {
+    type: record.type,
+    content: record.content,
+    source: {
+      url: record.source.url,
+      title: record.source.title,
+      favicon: typeof record.source.favicon === 'string' ? record.source.favicon : undefined,
+    },
+    createdAt: normalizedCreatedAt,
+    metadata: typeof record.metadata === 'object' && record.metadata !== null ? record.metadata : {},
+  };
+}
+
+function isDuplicateRecord(existingBlocks, candidate) {
+  return existingBlocks.some((existing) => (
+    existing.content === candidate.content
+    && existing.source?.url === candidate.source?.url
+    && existing.createdAt === candidate.createdAt
+  ));
+}
+
+async function importRecords(records) {
+  const existingBlocks = await loadBlocks();
+  const transaction = db.transaction([STORE_NAME], 'readwrite');
+  const store = transaction.objectStore(STORE_NAME);
+
+  let imported = 0;
+  let skipped = 0;
+
+  records.forEach((record) => {
+    if (isDuplicateRecord(existingBlocks, record)) {
+      skipped++;
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const block = {
+      id,
+      ...record,
+      updatedAt: now,
+    };
+    store.add(block);
+    existingBlocks.push(block);
+    imported++;
+  });
+
+  await new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+
+  return { imported, skipped, failed: 0 };
+}
+
+function buildExportContent(blocks, format) {
+  return format === 'json' ? exportBlocksToJSON(blocks) : exportBlocksToMarkdown(blocks);
+}
+
+async function exportToFile() {
+  if (isExporting || allBlocksCache.length === 0) {
+    if (allBlocksCache.length === 0) {
+      alert('No clips to export');
+    }
     return;
   }
 
-  if (!confirm(`Export ${allBlocksCache.length} clips as Markdown?`)) {
+  isExporting = true;
+  updateTransferControlsState();
+
+  try {
+    const format = getEffectiveExportFormat();
+    const content = buildExportContent(allBlocksCache, format);
+    const filename = generateExportFilename(format, allBlocksCache.length);
+    downloadFile(content, filename);
+  } finally {
+    isExporting = false;
+    updateTransferControlsState();
+  }
+}
+
+async function exportToClipboard() {
+  if (isExporting || allBlocksCache.length === 0) {
+    if (allBlocksCache.length === 0) {
+      alert('No clips to export');
+    }
     return;
   }
 
-  const filename = generateExportFilename('markdown', allBlocksCache.length);
-  const content = exportBlocksToMarkdown(allBlocksCache);
-  downloadFile(content, filename);
+  isExporting = true;
+  updateTransferControlsState();
+
+  try {
+    const format = getEffectiveExportFormat();
+    const content = buildExportContent(allBlocksCache, format);
+    await copyToClipboard(content);
+    alert(`Copied ${allBlocksCache.length} ${format.toUpperCase()} clips to clipboard.`);
+  } catch (error) {
+    alert(error instanceof Error ? error.message : 'Failed to copy export to clipboard.');
+  } finally {
+    isExporting = false;
+    updateTransferControlsState();
+  }
+}
+
+function triggerImportFilePicker() {
+  if (isImporting) {
+    return;
+  }
+
+  const input = document.getElementById('import-input');
+  const format = getEffectiveImportFormat();
+  input.accept = format === 'json' ? 'application/json,.json' : 'text/markdown,.md,.markdown,text/plain';
+  input.click();
+}
+
+async function importFromText(content, sourceLabel) {
+  isImporting = true;
+  updateTransferControlsState();
+
+  try {
+    const format = getEffectiveImportFormat();
+    const parsedRecords = parseImportContent(content, format)
+      .map((record, index) => normalizeImportRecord(record, index));
+
+    const result = await importRecords(parsedRecords);
+    await refreshList();
+    alert(`${sourceLabel} import (${format.toUpperCase()}): ${result.imported} imported, ${result.skipped} skipped, ${result.failed} failed.`);
+  } catch (error) {
+    alert(error instanceof Error ? error.message : 'Import failed');
+  } finally {
+    isImporting = false;
+    updateTransferControlsState();
+  }
+}
+
+async function handleImportFileChange(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) {
+    return;
+  }
+
+  const content = await file.text();
+  await importFromText(content, 'File');
+}
+
+async function importFromClipboard() {
+  if (isImporting) {
+    return;
+  }
+
+  try {
+    if (!navigator.clipboard) {
+      throw new Error('Clipboard API is not available. Please use file import.');
+    }
+    const text = await navigator.clipboard.readText();
+    await importFromText(text, 'Clipboard');
+  } catch (error) {
+    alert(error instanceof Error ? error.message : 'Clipboard import failed');
+  }
 }
 
 /**
@@ -326,15 +604,31 @@ function showDetail(block) {
     <pre>${block.content}</pre>
     <div class="detail-actions">
       <button class="export-single-button" data-format="json">Export JSON</button>
+      <button class="export-single-button" data-format="json-clipboard">Copy JSON</button>
       <button class="export-single-button" data-format="markdown">Export Markdown</button>
+      <button class="export-single-button" data-format="markdown-clipboard">Copy Markdown</button>
       <button class="delete-button" data-id="${block.id}">Delete</button>
     </div>
   `;
 
   // Add export single button handlers
   detailContent.querySelectorAll('.export-single-button').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const format = btn.dataset.format;
+
+      if (format === 'json-clipboard' || format === 'markdown-clipboard') {
+        try {
+          const content = format === 'json-clipboard'
+            ? exportBlocksToJSON([block])
+            : exportBlockToMarkdown(block);
+          await copyToClipboard(content);
+          alert(`Copied clip ${format.startsWith('json') ? 'JSON' : 'Markdown'} to clipboard.`);
+        } catch (error) {
+          alert(error instanceof Error ? error.message : 'Failed to copy to clipboard.');
+        }
+        return;
+      }
+
       const filename = generateExportFilename(format, 1);
       const content = format === 'json'
         ? exportBlocksToJSON([block])
@@ -373,8 +667,7 @@ async function refreshList() {
       allBlocksCache = blocks;
     }
 
-    // Update export buttons state
-    updateExportButtons(allBlocksCache.length);
+    updateTransferControlsState();
 
     renderList(blocks);
   } catch (error) {
@@ -384,17 +677,43 @@ async function refreshList() {
 }
 
 /**
- * Update export buttons state
+ * Update transfer controls state
  */
-function updateExportButtons(count) {
-  const exportButtons = document.getElementById('export-buttons');
-  if (exportButtons) {
-    if (count === 0) {
-      exportButtons.style.display = 'none';
-    } else {
-      exportButtons.style.display = 'flex';
-      document.getElementById('export-count').textContent = `${count} clips`;
-    }
+function updateTransferControlsState() {
+  const toolbar = document.getElementById('toolbar');
+  const exportFileBtn = document.getElementById('export-file');
+  const exportClipboardBtn = document.getElementById('export-clipboard');
+  const importFileBtn = document.getElementById('import-file');
+  const importClipboardBtn = document.getElementById('import-clipboard');
+  const exportFormatSelect = document.getElementById('export-format');
+  const importFormatSelect = document.getElementById('import-format');
+
+  if (toolbar) {
+    toolbar.style.display = 'flex';
+  }
+
+  if (exportFileBtn) {
+    exportFileBtn.disabled = isExporting || allBlocksCache.length === 0;
+  }
+
+  if (exportClipboardBtn) {
+    exportClipboardBtn.disabled = isExporting || allBlocksCache.length === 0;
+  }
+
+  if (importFileBtn) {
+    importFileBtn.disabled = isImporting;
+  }
+
+  if (importClipboardBtn) {
+    importClipboardBtn.disabled = isImporting;
+  }
+
+  if (exportFormatSelect) {
+    exportFormatSelect.disabled = isExporting;
+  }
+
+  if (importFormatSelect) {
+    importFormatSelect.disabled = isImporting;
   }
 }
 
@@ -422,9 +741,41 @@ async function init() {
       refreshList();
     });
 
-    // Export buttons handlers
-    document.getElementById('export-json').addEventListener('click', exportAsJSON);
-    document.getElementById('export-markdown').addEventListener('click', exportAsMarkdown);
+    document.getElementById('density-toggle').addEventListener('click', () => {
+      densityMode = densityMode === 'standard' ? 'compact' : 'standard';
+      applyDensityMode();
+    });
+
+    document.getElementById('export-format').addEventListener('change', (event) => {
+      exportFormat = event.target.value;
+    });
+
+    document.getElementById('import-format').addEventListener('change', (event) => {
+      importFormat = event.target.value;
+    });
+
+    document.getElementById('export-file').addEventListener('click', () => {
+      exportToFile();
+    });
+
+    document.getElementById('export-clipboard').addEventListener('click', () => {
+      exportToClipboard();
+    });
+
+    document.getElementById('import-file').addEventListener('click', () => {
+      triggerImportFilePicker();
+    });
+
+    document.getElementById('import-clipboard').addEventListener('click', () => {
+      importFromClipboard();
+    });
+
+    document.getElementById('import-input').addEventListener('change', (event) => {
+      handleImportFileChange(event);
+    });
+
+    applyDensityMode();
+    updateTransferControlsState();
 
     console.log('[Options] Options page initialized successfully');
 

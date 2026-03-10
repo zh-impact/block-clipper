@@ -1,6 +1,7 @@
-import { parseImportJsonContent, validateImportFileSize } from '../../utils/importer';
+import { parseImportContent, validateImportFileSize } from '../../utils/importer';
 import type { ImportRecord } from '../../utils/importer';
 import type { ImportSummary } from '../../utils/storage';
+import type { ImportFormat } from '../../utils/importer';
 
 export interface ImportFlowResult extends ImportSummary {
   parseFailures: string[];
@@ -8,9 +9,10 @@ export interface ImportFlowResult extends ImportSummary {
 
 export async function runImportFlow(
   fileText: string,
-  storageService: { importRecords: (records: ImportRecord[], batchSize?: number) => Promise<ImportSummary> }
+  storageService: { importRecords: (records: ImportRecord[], batchSize?: number) => Promise<ImportSummary> },
+  format: ImportFormat = 'json'
 ): Promise<ImportFlowResult> {
-  const parseResult = parseImportJsonContent(fileText);
+  const parseResult = parseImportContent(fileText, format);
 
   const fileLevelFailure = parseResult.failures.find((failure) => failure.index === null);
   if (fileLevelFailure) {
