@@ -5,11 +5,18 @@
 
 import type { Block, CreateBlockInput, BlockSource } from '../utils/block-model';
 import { convertHTMLtoMarkdownSafe } from '../utils/converter';
+import { extractVisibleTextFromElement, findBestCandidateFromElement } from '../utils/visual-selector';
 
 /**
  * Message types for content script communication
  */
-type MessageType = 'TRIGGER_CLIP' | 'CLIP_CONTENT' | 'CLIP_SUCCESS' | 'CLIP_ERROR' | 'PING';
+type MessageType =
+  | 'TRIGGER_CLIP'
+  | 'START_VISUAL_SELECTOR'
+  | 'CLIP_CONTENT'
+  | 'CLIP_SUCCESS'
+  | 'CLIP_ERROR'
+  | 'PING';
 
 /**
  * Message payload
@@ -252,6 +259,310 @@ async function clipContent(): Promise<void> {
   }
 }
 
+const SELECTOR_UI_CLASS = 'bc-visual-selector-ui';
+const CANDIDATE_MIN_TEXT_LENGTH = 20;
+
+let isVisualSelectorActive = false;
+let highlightedCandidate: HTMLElement | null = null;
+let pendingHoverTarget: HTMLElement | null = null;
+let hoverRafId: number | null = null;
+
+let selectorHighlightElement: HTMLDivElement | null = null;
+let selectorHintElement: HTMLDivElement | null = null;
+let selectorPreviewElement: HTMLDivElement | null = null;
+
+function createSelectorHighlight(): HTMLDivElement {
+  const highlight = document.createElement('div');
+  highlight.className = SELECTOR_UI_CLASS;
+  highlight.style.position = 'fixed';
+  highlight.style.pointerEvents = 'none';
+  highlight.style.border = '2px solid #3b82f6';
+  highlight.style.background = 'rgba(59, 130, 246, 0.15)';
+  highlight.style.zIndex = '2147483645';
+  highlight.style.borderRadius = '6px';
+  highlight.style.boxSizing = 'border-box';
+  highlight.style.display = 'none';
+  document.body.appendChild(highlight);
+  return highlight;
+}
+
+function createSelectorHint(): HTMLDivElement {
+  const hint = document.createElement('div');
+  hint.className = SELECTOR_UI_CLASS;
+  hint.style.position = 'fixed';
+  hint.style.top = '12px';
+  hint.style.right = '12px';
+  hint.style.padding = '8px 12px';
+  hint.style.background = 'rgba(17, 24, 39, 0.92)';
+  hint.style.color = '#fff';
+  hint.style.fontSize = '12px';
+  hint.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  hint.style.borderRadius = '8px';
+  hint.style.zIndex = '2147483646';
+  hint.style.pointerEvents = 'none';
+  hint.textContent = 'Visual Select: hover content, click to preview, Esc to cancel';
+  document.body.appendChild(hint);
+  return hint;
+}
+
+function updateHighlightPosition(element: HTMLElement | null): void {
+  if (!selectorHighlightElement) {
+    return;
+  }
+
+  if (!element) {
+    selectorHighlightElement.style.display = 'none';
+    return;
+  }
+
+  const rect = element.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) {
+    selectorHighlightElement.style.display = 'none';
+    return;
+  }
+
+  selectorHighlightElement.style.display = 'block';
+  selectorHighlightElement.style.left = `${rect.left}px`;
+  selectorHighlightElement.style.top = `${rect.top}px`;
+  selectorHighlightElement.style.width = `${rect.width}px`;
+  selectorHighlightElement.style.height = `${rect.height}px`;
+}
+
+function teardownSelectorUI(): void {
+  selectorHighlightElement?.remove();
+  selectorHintElement?.remove();
+  selectorPreviewElement?.remove();
+
+  selectorHighlightElement = null;
+  selectorHintElement = null;
+  selectorPreviewElement = null;
+}
+
+function cleanupSelectorMode(): void {
+  document.removeEventListener('mousemove', handleSelectorMouseMove, true);
+  document.removeEventListener('click', handleSelectorClick, true);
+  document.removeEventListener('keydown', handleSelectorKeyDown, true);
+
+  if (hoverRafId !== null) {
+    cancelAnimationFrame(hoverRafId);
+    hoverRafId = null;
+  }
+
+  highlightedCandidate = null;
+  pendingHoverTarget = null;
+  isVisualSelectorActive = false;
+
+  teardownSelectorUI();
+}
+
+function exitSelectorMode(showCancelledMessage = false): void {
+  cleanupSelectorMode();
+  if (showCancelledMessage) {
+    showNotification('Visual selector canceled', 'Selection mode has been closed.');
+  }
+}
+
+function openSelectorPreview(candidate: HTMLElement): void {
+  selectorPreviewElement?.remove();
+
+  const extractedText = extractVisibleTextFromElement(candidate);
+
+  const modal = document.createElement('div');
+  modal.className = SELECTOR_UI_CLASS;
+  modal.style.position = 'fixed';
+  modal.style.right = '12px';
+  modal.style.bottom = '12px';
+  modal.style.width = 'min(420px, calc(100vw - 24px))';
+  modal.style.maxHeight = 'min(60vh, 520px)';
+  modal.style.display = 'flex';
+  modal.style.flexDirection = 'column';
+  modal.style.gap = '10px';
+  modal.style.padding = '12px';
+  modal.style.background = '#ffffff';
+  modal.style.border = '1px solid #d1d5db';
+  modal.style.borderRadius = '10px';
+  modal.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)';
+  modal.style.zIndex = '2147483647';
+  modal.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+  const title = document.createElement('div');
+  title.textContent = 'Confirm capture';
+  title.style.fontSize = '14px';
+  title.style.fontWeight = '600';
+
+  const preview = document.createElement('pre');
+  preview.textContent = extractedText || '[No visible text detected]';
+  preview.style.margin = '0';
+  preview.style.padding = '10px';
+  preview.style.background = '#f9fafb';
+  preview.style.border = '1px solid #e5e7eb';
+  preview.style.borderRadius = '8px';
+  preview.style.maxHeight = '260px';
+  preview.style.overflow = 'auto';
+  preview.style.whiteSpace = 'pre-wrap';
+  preview.style.fontSize = '12px';
+  preview.style.lineHeight = '1.5';
+  preview.style.color = '#111827';
+
+  const actions = document.createElement('div');
+  actions.style.display = 'flex';
+  actions.style.justifyContent = 'flex-end';
+  actions.style.gap = '8px';
+
+  const cancelButton = document.createElement('button');
+  cancelButton.textContent = 'Cancel';
+  cancelButton.style.padding = '6px 10px';
+  cancelButton.style.border = '1px solid #d1d5db';
+  cancelButton.style.borderRadius = '6px';
+  cancelButton.style.background = '#fff';
+  cancelButton.style.cursor = 'pointer';
+
+  const confirmButton = document.createElement('button');
+  confirmButton.textContent = 'Confirm Save';
+  confirmButton.style.padding = '6px 10px';
+  confirmButton.style.border = 'none';
+  confirmButton.style.borderRadius = '6px';
+  confirmButton.style.background = '#2563eb';
+  confirmButton.style.color = '#fff';
+  confirmButton.style.cursor = 'pointer';
+
+  cancelButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    exitSelectorMode();
+  });
+
+  confirmButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void confirmSelectorCapture(candidate);
+  });
+
+  actions.appendChild(cancelButton);
+  actions.appendChild(confirmButton);
+
+  modal.appendChild(title);
+  modal.appendChild(preview);
+  modal.appendChild(actions);
+
+  document.body.appendChild(modal);
+  selectorPreviewElement = modal;
+}
+
+async function confirmSelectorCapture(candidate: HTMLElement): Promise<void> {
+  const text = extractVisibleTextFromElement(candidate);
+
+  if (!text.trim()) {
+    showNotification('No text to capture', 'The selected area has no visible text. Choose another area.');
+    return;
+  }
+
+  const source = extractMetadata();
+  const input: CreateBlockInput = {
+    type: 'text',
+    content: text,
+    metadata: {
+      htmlLength: text.length,
+      selectedAt: new Date().toISOString(),
+      captureMode: 'visual-selector',
+      selectedTag: candidate.tagName.toLowerCase(),
+    },
+    source,
+  };
+
+  try {
+    const response = await sendMessage('CLIP_CONTENT', input);
+    if (response?.type === 'CLIP_SUCCESS') {
+      showNotification('✓ Content clipped!', 'Visual selection saved to Block Clipper');
+    } else {
+      const error = (response?.data as { error?: string } | undefined)?.error || 'Failed to save visual selection';
+      showNotification('✗ Clipping failed', error);
+    }
+  } catch (error) {
+    showNotification('✗ Clipping failed', error instanceof Error ? error.message : 'Failed to save visual selection');
+  } finally {
+    exitSelectorMode();
+  }
+}
+
+function handleSelectorMouseMove(event: MouseEvent): void {
+  if (!isVisualSelectorActive || selectorPreviewElement) {
+    return;
+  }
+
+  let eventTarget = event.target as HTMLElement | null;
+  if (eventTarget?.closest(`.${SELECTOR_UI_CLASS}`)) {
+    eventTarget = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+  }
+
+  pendingHoverTarget = eventTarget;
+
+  if (hoverRafId !== null) {
+    return;
+  }
+
+  hoverRafId = requestAnimationFrame(() => {
+    hoverRafId = null;
+
+    const bestCandidate = findBestCandidateFromElement(pendingHoverTarget, {
+      minTextLength: CANDIDATE_MIN_TEXT_LENGTH,
+      overlayClassName: SELECTOR_UI_CLASS,
+    });
+
+    highlightedCandidate = bestCandidate;
+    updateHighlightPosition(bestCandidate);
+  });
+}
+
+function handleSelectorClick(event: MouseEvent): void {
+  if (!isVisualSelectorActive) {
+    return;
+  }
+
+  const target = event.target as HTMLElement | null;
+  if (target?.closest(`.${SELECTOR_UI_CLASS}`)) {
+    return;
+  }
+
+  if (!highlightedCandidate) {
+    showNotification('No area selected', 'Move your mouse over page content and click again.');
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  openSelectorPreview(highlightedCandidate);
+}
+
+function handleSelectorKeyDown(event: KeyboardEvent): void {
+  if (!isVisualSelectorActive) {
+    return;
+  }
+
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    exitSelectorMode(true);
+  }
+}
+
+function startVisualSelectorMode(): void {
+  if (isVisualSelectorActive) {
+    return;
+  }
+
+  isVisualSelectorActive = true;
+  highlightedCandidate = null;
+
+  selectorHighlightElement = createSelectorHighlight();
+  selectorHintElement = createSelectorHint();
+
+  document.addEventListener('mousemove', handleSelectorMouseMove, true);
+  document.addEventListener('click', handleSelectorClick, true);
+  document.addEventListener('keydown', handleSelectorKeyDown, true);
+}
+
 /**
  * Send message to background service worker
  * @param type Message type
@@ -299,6 +610,12 @@ function handleMessages(message: MessagePayload, sendResponse?: (response?: unkn
     sendResponse?.({}); // Send empty response to prevent port closed error
     void clipContent();
     return false; // Response already sent
+  }
+
+  if (message.type === 'START_VISUAL_SELECTOR') {
+    sendResponse?.({});
+    startVisualSelectorMode();
+    return false;
   }
 
   return false; // Not handling this message

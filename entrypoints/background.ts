@@ -14,6 +14,10 @@ type MessageType =
   | 'CLIP_CONTENT'
   | 'CLIP_SUCCESS'
   | 'CLIP_ERROR'
+  | 'OPEN_VISUAL_SELECTOR'
+  | 'START_VISUAL_SELECTOR'
+  | 'VISUAL_SELECTOR_STARTED'
+  | 'VISUAL_SELECTOR_ERROR'
   | 'SHOW_NOTIFICATION'
   | 'GET_STORAGE_USAGE'
   | 'GET_CLIP_COUNT'
@@ -156,6 +160,45 @@ async function handleClipContent(
  */
 function handleNotification(data: { title: string; message: string }): void {
   showNotification(data.title, data.message);
+}
+
+/**
+ * Handle request to start visual selector mode from popup
+ */
+async function handleOpenVisualSelector(): Promise<MessagePayload> {
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!activeTab?.id) {
+      return {
+        type: 'VISUAL_SELECTOR_ERROR',
+        data: { error: 'No active tab found to start visual selector.' },
+      };
+    }
+
+    await ensureContentScriptReady(activeTab);
+
+    await new Promise<void>((resolve, reject) => {
+      chrome.tabs.sendMessage(activeTab.id!, { type: 'START_VISUAL_SELECTOR' }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    return { type: 'VISUAL_SELECTOR_STARTED' };
+  } catch (error) {
+    return {
+      type: 'VISUAL_SELECTOR_ERROR',
+      data: {
+        error: error instanceof Error
+          ? error.message
+          : 'Failed to start visual selector. Try refreshing the page.',
+      },
+    };
+  }
 }
 
 /**
@@ -340,6 +383,10 @@ async function initialize(): Promise<void> {
 
           case 'CLIP_CONTENT':
             response = await handleClipContent(message.data as CreateBlockInput, sender);
+            break;
+
+          case 'OPEN_VISUAL_SELECTOR':
+            response = await handleOpenVisualSelector();
             break;
 
           case 'SHOW_NOTIFICATION':

@@ -6,6 +6,7 @@
 import { type JSX, useState, useEffect } from 'react';
 import { getStorageService } from '../../utils/storage';
 import type { Block } from '../../utils/block-model';
+import { requestVisualSelectorStart } from './visualSelector';
 import './App.css';
 
 /**
@@ -89,6 +90,23 @@ async function openSidePanel(): Promise<void> {
 }
 
 /**
+ * Start visual selector mode on active tab
+ */
+async function startVisualSelector(): Promise<void> {
+  try {
+    const result = await requestVisualSelectorStart(chrome.runtime.sendMessage);
+    if (result.ok) {
+      window.close();
+      return;
+    }
+
+    alert(result.error || 'Failed to start visual selector.');
+  } catch (error) {
+    alert(error instanceof Error ? error.message : 'Failed to start visual selector.');
+  }
+}
+
+/**
  * Open documentation/help
  */
 function openDocumentation(): void {
@@ -132,6 +150,12 @@ function App(): JSX.Element {
         </div>
         <div className="clip-count">{clipCount} clips</div>
       </header>
+
+      <div className="quick-action-row">
+        <button onClick={() => void startVisualSelector()} className="visual-selector-button">
+          Visual Select Tool
+        </button>
+      </div>
 
       {isLoading ? (
         <div className="loading-state">Loading...</div>
@@ -236,6 +260,27 @@ function App(): JSX.Element {
           color: #666;
           font-size: 13px;
           flex: 1;
+        }
+
+        .quick-action-row {
+          padding: 10px 14px 0;
+        }
+
+        .visual-selector-button {
+          width: 100%;
+          border: 1px solid #2563eb;
+          background: #eff6ff;
+          color: #1d4ed8;
+          padding: 8px 10px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+
+        .visual-selector-button:hover {
+          background: #dbeafe;
         }
 
         .hint {
