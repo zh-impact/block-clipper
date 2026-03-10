@@ -35,7 +35,4 @@ export default defineConfig({
       default_title: 'Open Block Clipper',
     },
   },
-  zip: {
-    artItems: ['icon/**/*', 'README.md', 'LICENSE'],
-  },
 });

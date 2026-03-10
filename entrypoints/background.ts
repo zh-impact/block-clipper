@@ -398,7 +398,9 @@ async function initialize(): Promise<void> {
             if (chrome.sidePanel) {
               // Get current window and open side panel for it
               const window = await chrome.windows.getCurrent();
-              await chrome.sidePanel.open({ windowId: window.id });
+              if (window.id !== undefined) {
+                await chrome.sidePanel.open({ windowId: window.id });
+              }
             }
             break;
 

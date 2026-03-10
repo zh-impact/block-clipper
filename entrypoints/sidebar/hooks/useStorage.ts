@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { getStorageService, type Block } from '../../utils/storage';
-import type { CreateBlockInput } from '../../utils/block-model';
+import { getStorageService } from '../../../utils/storage';
+import type { Block, CreateBlockInput } from '../../../utils/block-model';
 
 /**
  * Query options

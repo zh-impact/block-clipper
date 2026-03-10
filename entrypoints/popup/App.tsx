@@ -80,6 +80,10 @@ async function openSidePanel(): Promise<void> {
     if (chrome.sidePanel) {
       // Get current window and open side panel directly
       const chromeWindow = await chrome.windows.getCurrent();
+      if (chromeWindow.id === undefined) {
+        throw new Error('No active browser window found');
+      }
+
       await chrome.sidePanel.open({ windowId: chromeWindow.id });
       // Close popup using JavaScript's window.close()
       window.close();

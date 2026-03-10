@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 const mockSendMessage = vi.fn();
 const mockOnMessageAddListener = vi.fn();
 
-global.chrome = {
+(globalThis as { chrome?: typeof chrome }).chrome = {
   runtime: {
     sendMessage: mockSendMessage,
     onMessage: {
@@ -284,10 +284,12 @@ describe('Content Script - Core Logic', () => {
     });
 
     it('should handle runtime errors', () => {
-      global.chrome = {
+      (globalThis as { chrome?: typeof chrome }).chrome = {
         runtime: {
           sendMessage: vi.fn((_message, callback) => {
-            (global.chrome.runtime as any).lastError = { message: 'Connection failed' };
+            ((globalThis as { chrome?: typeof chrome }).chrome!.runtime as any).lastError = {
+              message: 'Connection failed',
+            };
             callback?.();
           }),
           onMessage: { addListener: vi.fn() },
@@ -297,7 +299,7 @@ describe('Content Script - Core Logic', () => {
 
       expect(() => {
         // Simulate error handling
-        const chrome = global.chrome as any;
+        const chrome = (globalThis as { chrome?: typeof chrome }).chrome as any;
         if (chrome.runtime.lastError) {
           throw new Error(chrome.runtime.lastError.message);
         }
