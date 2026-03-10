@@ -12,8 +12,16 @@ import type {
   StorageUsage,
 } from '../block-model';
 import { generateUUID } from '../block-model';
+import type { ImportRecord } from '../importer';
 import { DB_CONFIG, STORES, INDEXES } from './schema';
 import { handleDatabaseUpgrade, validateSchema } from './migrations';
+
+export interface ImportSummary {
+  imported: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+}
 
 /**
  * Event types emitted by StorageService
@@ -451,6 +459,96 @@ export class StorageService {
         };
       }
     });
+  }
+
+  private async addBlock(block: Block): Promise<void> {
+    const db = await this.ensureInitialized();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.BLOCKS], 'readwrite');
+      const store = transaction.objectStore(STORES.BLOCKS);
+      const request = store.add(block);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(new Error(`Failed to import block: ${request.error}`));
+    });
+  }
+
+  async isDuplicateImportRecord(record: ImportRecord): Promise<boolean> {
+    const db = await this.ensureInitialized();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORES.BLOCKS], 'readonly');
+      const store = transaction.objectStore(STORES.BLOCKS);
+      const sourceIndex = store.index(INDEXES.BY_SOURCE);
+      const range = IDBKeyRange.only(record.source.url);
+      const request = sourceIndex.openCursor(range);
+
+      request.onsuccess = () => {
+        const cursor = request.result;
+
+        if (!cursor) {
+          resolve(false);
+          return;
+        }
+
+        const existing = cursor.value as Block;
+        const isDuplicate =
+          existing.content === record.content
+          && existing.source.url === record.source.url
+          && existing.createdAt === record.createdAt;
+
+        if (isDuplicate) {
+          resolve(true);
+          return;
+        }
+
+        cursor.continue();
+      };
+
+      request.onerror = () => reject(new Error(`Failed duplicate check: ${request.error}`));
+    });
+  }
+
+  async importRecords(records: ImportRecord[], batchSize = 50): Promise<ImportSummary> {
+    const summary: ImportSummary = {
+      imported: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+
+      for (const record of batch) {
+        try {
+          const isDuplicate = await this.isDuplicateImportRecord(record);
+          if (isDuplicate) {
+            summary.skipped++;
+            continue;
+          }
+
+          const block: Block = {
+            id: generateUUID(),
+            type: record.type,
+            content: record.content,
+            metadata: record.metadata || {},
+            source: record.source,
+            createdAt: record.createdAt,
+            updatedAt: record.createdAt,
+          };
+
+          await this.addBlock(block);
+          summary.imported++;
+        } catch (error) {
+          summary.failed++;
+          summary.errors.push(error instanceof Error ? error.message : 'Unknown import error');
+        }
+      }
+    }
+
+    return summary;
   }
 
   /**

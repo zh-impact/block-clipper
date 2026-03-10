@@ -3,9 +3,11 @@
  * @description Main entry point for the Block Clipper sidebar UI
  */
 
-import { type JSX, useState, useEffect, useRef } from 'react';
+import { type JSX, type ChangeEvent, useState, useEffect, useRef } from 'react';
 import { getStorageService } from '../../utils/storage';
 import type { Block } from '../../utils/block-model';
+import type { ImportSummary } from '../../utils/storage';
+import { getImportFileSizeError, runImportFlow } from './importFlow';
 
 /**
  * View types for routing
@@ -20,6 +22,10 @@ interface Toast {
   message: string;
   type: 'success' | 'error' | 'info';
   duration?: number;
+}
+
+interface ImportReport extends ImportSummary {
+  parseFailures: string[];
 }
 
 /**
@@ -41,6 +47,8 @@ interface AppState {
   isSearching: boolean; // Show loading indicator during search
   storageQuotaWarning: boolean; // Show storage quota warning
   totalCount: number; // Total number of clips in storage
+  isImporting: boolean;
+  lastImportReport: ImportReport | null;
 }
 
 /**
@@ -48,6 +56,7 @@ interface AppState {
  */
 export default function App(): JSX.Element {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [state, setState] = useState<AppState>({
     currentView: 'empty',
     selectedBlock: null,
@@ -64,6 +73,8 @@ export default function App(): JSX.Element {
     isSearching: false,
     storageQuotaWarning: false,
     totalCount: 0,
+    isImporting: false,
+    lastImportReport: null,
   });
 
   // Initialize storage and load blocks
@@ -342,6 +353,101 @@ export default function App(): JSX.Element {
     }, duration);
   };
 
+  const reloadFirstPage = async (): Promise<void> => {
+    const storageService = getStorageService();
+    const result = await storageService.query({ page: 1, limit: 50 });
+
+    const sortedItems = result.items.sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    setState((prev) => ({
+      ...prev,
+      blocks: sortedItems,
+      currentView: sortedItems.length > 0 ? 'list' : 'empty',
+      isSearchMode: false,
+      currentPage: 1,
+      hasMore: sortedItems.length === 50,
+      selectedIndex: -1,
+      searchQuery: '',
+      totalCount: result.total,
+    }));
+  };
+
+  const handleImportClick = (): void => {
+    if (state.isImporting) {
+      return;
+    }
+
+    importInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    event.currentTarget.value = '';
+
+    const sizeError = getImportFileSizeError(file.size);
+    if (sizeError) {
+      showToast(sizeError, 'error');
+      setState((prev) => ({
+        ...prev,
+        lastImportReport: {
+          imported: 0,
+          skipped: 0,
+          failed: 1,
+          parseFailures: [sizeError],
+          errors: [sizeError],
+        },
+      }));
+      return;
+    }
+
+    setState((prev) => ({ ...prev, isImporting: true }));
+
+    try {
+      const content = await file.text();
+      const storageService = getStorageService();
+      const report = await runImportFlow(content, storageService);
+
+      setState((prev) => ({
+        ...prev,
+        isImporting: false,
+        lastImportReport: report,
+      }));
+
+      if (report.imported > 0) {
+        await reloadFirstPage();
+      }
+
+      showToast(
+        `Import complete: ${report.imported} imported, ${report.skipped} skipped, ${report.failed} failed`,
+        report.failed > 0 ? 'info' : 'success',
+        4500
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Import failed';
+
+      setState((prev) => ({
+        ...prev,
+        isImporting: false,
+        lastImportReport: {
+          imported: 0,
+          skipped: 0,
+          failed: 1,
+          parseFailures: [message],
+          errors: [message],
+        },
+      }));
+
+      showToast(message, 'error');
+    }
+  };
+
   /**
    * Delete a block
    */
@@ -353,25 +459,10 @@ export default function App(): JSX.Element {
       // Show success notification
       showToast('Clip deleted successfully', 'success');
 
-      // Refresh the list from page 1
-      const result = await storageService.query({ page: 1, limit: 50 });
-
-      // Sort by createdAt descending (newest first) to ensure correct order
-      const sortedItems = result.items.sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-
+      await reloadFirstPage();
       setState((prev) => ({
         ...prev,
-        blocks: sortedItems,
-        currentView: sortedItems.length > 0 ? 'list' : 'empty',
         selectedBlock: null,
-        currentPage: 1,
-        hasMore: sortedItems.length === 50,
-        isSearchMode: false,
-        selectedIndex: -1,
-        searchQuery: '',
-        totalCount: result.total,
       }));
     } catch (error) {
       console.error('[Sidebar App] Failed to delete block:', error);
@@ -630,13 +721,46 @@ export default function App(): JSX.Element {
     return (
       <div className="sidebar-container">
         <header className="sidebar-header">
-          <h1>Block Clipper</h1>
+          <div className="header-top-row">
+            <h1>Block Clipper</h1>
+            <button
+              onClick={handleImportClick}
+              className="import-button"
+              disabled={state.isImporting}
+              type="button"
+              aria-label="Import clips from JSON"
+            >
+              {state.isImporting ? 'Importing...' : 'Import JSON'}
+            </button>
+          </div>
           <div className="block-count">
             {state.isSearchMode
               ? `${state.blocks.length} results`
               : `${state.blocks.length}${state.hasMore ? '+' : ''} clips`}
           </div>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: 'none' }}
+            onChange={(e) => void handleImportFileChange(e)}
+          />
         </header>
+
+        {state.lastImportReport && (
+          <div className="import-report" role="status" aria-live="polite">
+            <div className="import-summary">
+              Imported: {state.lastImportReport.imported} · Skipped: {state.lastImportReport.skipped} · Failed: {state.lastImportReport.failed}
+            </div>
+            {state.lastImportReport.errors.length > 0 && (
+              <ul className="import-errors">
+                {state.lastImportReport.errors.slice(0, 3).map((error, index) => (
+                  <li key={`${error}-${index}`}>{error}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {/* Storage Quota Warning */}
         {state.storageQuotaWarning && (
@@ -740,15 +864,56 @@ export default function App(): JSX.Element {
             padding: 16px;
             border-bottom: 1px solid #e5e5e5;
           }
+          .header-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+          }
           .sidebar-header h1 {
             font-size: 18px;
             font-weight: 600;
             margin: 0;
           }
+          .import-button {
+            border: 1px solid #2563eb;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+          }
+          .import-button:hover:not(:disabled) {
+            background: #dbeafe;
+          }
+          .import-button:disabled {
+            opacity: 0.7;
+            cursor: wait;
+          }
           .block-count {
             font-size: 12px;
             color: #666;
             margin-top: 4px;
+          }
+          .import-report {
+            margin: 8px 16px 0;
+            padding: 8px 10px;
+            border: 1px solid #dbeafe;
+            background: #f8fbff;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #1e3a8a;
+          }
+          .import-summary {
+            font-weight: 600;
+          }
+          .import-errors {
+            margin: 6px 0 0 18px;
+            padding: 0;
+            color: #991b1b;
           }
           .quota-warning {
             padding: 10px 16px;

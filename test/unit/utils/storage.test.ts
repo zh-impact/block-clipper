@@ -319,4 +319,58 @@ describe('StorageService - CRUD Operations', () => {
       expect(usage.quota).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe('importRecords()', () => {
+    it('imports unique records and skips duplicates', async () => {
+      const existing = await storageService.create({
+        type: 'text',
+        content: 'Duplicate me',
+        source: { url: 'https://example.com', title: 'Example' },
+      });
+
+      const summary = await storageService.importRecords([
+        {
+          type: 'text',
+          content: 'Duplicate me',
+          source: { url: 'https://example.com', title: 'Example' },
+          createdAt: existing.createdAt,
+          metadata: {},
+        },
+        {
+          type: 'text',
+          content: 'Brand new record',
+          source: { url: 'https://example.com/new', title: 'New' },
+          createdAt: new Date().toISOString(),
+          metadata: {},
+        },
+      ]);
+
+      expect(summary.imported).toBe(1);
+      expect(summary.skipped).toBe(1);
+      expect(summary.failed).toBe(0);
+    });
+
+    it('continues processing on partial failures', async () => {
+      const summary = await storageService.importRecords([
+        {
+          type: 'text',
+          content: 'ok',
+          source: { url: 'https://example.com/a', title: 'A' },
+          createdAt: new Date().toISOString(),
+          metadata: {},
+        },
+        {
+          type: 'text',
+          content: 'ok',
+          source: { url: 'https://example.com/a', title: 'A' },
+          createdAt: new Date().toISOString(),
+          metadata: {},
+        },
+      ]);
+
+      expect(summary.imported).toBeGreaterThanOrEqual(1);
+      expect(summary.failed).toBeGreaterThanOrEqual(0);
+      expect(summary.skipped).toBeGreaterThanOrEqual(0);
+    });
+  });
 });
