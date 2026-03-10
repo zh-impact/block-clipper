@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Block Clipper Logo](icon/128.png)
+![Block Clipper Logo](public/icon/128.png)
 
 # 📋 Block Clipper
 
