@@ -1,29 +1,19 @@
-/**
- * Sidebar Global Styles
- * @description Global styles for the Block Clipper sidebar
- */
+@import "tailwindcss";
 
-/* Reset and base styles */
 * {
   box-sizing: border-box;
 }
 
 html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
-    Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
+body,
 #app {
-  height: 100%;
+  @apply m-0 h-full p-0;
 }
 
-/* Scrollbar styling */
+body {
+  @apply font-sans;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -33,21 +23,293 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 4px;
+  @apply rounded bg-slate-300;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #999;
+  @apply bg-slate-400;
 }
 
-/* Focus visible styles for accessibility */
 :focus-visible {
   outline: 2px solid #3498db;
   outline-offset: 2px;
 }
 
-/* Utility classes */
+.sidebar-container {
+  @apply flex h-screen flex-col bg-white font-sans;
+}
+
+.loading-spinner {
+  @apply text-center text-slate-500;
+}
+
+.spinner {
+  @apply mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-[3px] border-slate-100 border-t-sky-500;
+}
+
+.empty-state {
+  @apply mt-20 text-center text-slate-500;
+}
+
+.empty-icon {
+  @apply mb-4 text-6xl;
+}
+
+.empty-state h2 {
+  @apply mb-2 text-xl font-semibold text-slate-700;
+}
+
+.empty-state p {
+  @apply mb-6 text-sm leading-6;
+}
+
+.shortcut-hint {
+  @apply inline-flex gap-1 rounded-md bg-slate-100 px-4 py-2 text-xs;
+}
+
+kbd {
+  @apply rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono font-semibold;
+}
+
+.sidebar-header {
+  @apply border-b border-slate-200 p-4;
+}
+
+.header-title-row {
+  @apply flex items-center justify-between gap-2;
+}
+
+.header-meta {
+  @apply flex items-center gap-2;
+}
+
+.sidebar-header h1 {
+  @apply m-0 text-lg font-semibold;
+}
+
+.block-count {
+  @apply text-xs text-slate-500;
+}
+
+.density-toggle-button {
+  @apply cursor-pointer rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700;
+}
+
+.transfer-grid {
+  @apply mt-2.5 flex flex-wrap gap-2;
+}
+
+.transfer-group {
+  @apply inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-50 px-2 py-1.5;
+}
+
+.transfer-group-label {
+  @apply text-[11px] font-bold uppercase tracking-wide text-blue-900;
+}
+
+.format-select {
+  @apply rounded-md border border-slate-300 bg-white px-1.5 py-1 text-xs font-semibold text-slate-800;
+}
+
+.icon-action-button {
+  @apply inline-flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-md border border-blue-600 bg-blue-100 text-blue-700 transition-colors hover:bg-blue-200;
+}
+
+.icon-action-button:disabled,
+.format-select:disabled {
+  @apply cursor-wait opacity-70;
+}
+
+.transfer-hint {
+  @apply mt-2 text-[11px] text-slate-500;
+}
+
+.density-compact .sidebar-header {
+  @apply p-3;
+}
+
+.density-compact .transfer-group {
+  @apply gap-1 border-none bg-transparent p-0;
+}
+
+.density-compact .transfer-group-label,
+.density-compact .transfer-hint {
+  @apply hidden;
+}
+
+.density-compact .format-select {
+  @apply px-1 py-0.5 text-[11px];
+}
+
+.density-compact .icon-action-button {
+  @apply h-[26px] w-[26px];
+}
+
+.import-report {
+  @apply mx-4 mt-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-xs text-blue-900;
+}
+
+.import-summary {
+  @apply font-semibold;
+}
+
+.import-errors {
+  @apply mt-1.5 pl-4 text-red-800;
+}
+
+.quota-warning {
+  @apply flex items-center gap-1.5 border-b border-amber-400 bg-amber-100 px-4 py-2.5 text-xs text-amber-800;
+}
+
+.search-bar {
+  @apply relative border-b border-slate-200 px-4 py-3;
+}
+
+.search-input {
+  @apply w-[calc(100%_-_24px)] rounded-md border border-slate-300 px-3 py-2 text-sm;
+}
+
+.search-input:focus {
+  @apply border-sky-500 outline-none;
+}
+
+.search-input:disabled {
+  @apply cursor-wait bg-slate-100;
+}
+
+.clear-button {
+  @apply absolute right-6 top-1/2 -translate-y-1/2 border-none bg-transparent p-1 text-base text-slate-400;
+}
+
+.clear-button:hover {
+  @apply text-slate-600;
+}
+
+.search-loading {
+  @apply absolute right-6 top-1/2 flex -translate-y-1/2 items-center;
+}
+
+.search-spinner {
+  @apply h-4 w-4 animate-spin rounded-full border-2 border-slate-100 border-t-sky-500;
+}
+
+.blocks-list {
+  @apply flex-1 overflow-y-auto p-2;
+}
+
+.block-card {
+  @apply mb-2 cursor-pointer rounded-lg bg-slate-50 p-3 transition-colors hover:bg-slate-100;
+}
+
+.block-card.selected {
+  @apply border border-sky-500 bg-sky-50;
+}
+
+.block-header {
+  @apply mb-2 flex items-start justify-between;
+}
+
+.block-title {
+  @apply m-0 flex-1 truncate text-sm font-medium text-slate-700;
+}
+
+.block-time {
+  @apply ml-2 whitespace-nowrap text-[11px] text-slate-400;
+}
+
+.block-preview {
+  @apply mb-2 text-xs leading-5 text-slate-500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.block-source {
+  @apply flex items-center text-[11px] text-slate-400;
+}
+
+.source-favicon {
+  @apply mr-1.5 flex h-[14px] w-[14px] items-center;
+}
+
+.source-favicon img {
+  @apply h-[14px] w-[14px];
+}
+
+.source-title {
+  @apply truncate;
+}
+
+.load-more-button {
+  @apply m-2 w-[calc(100%_-_16px)] cursor-pointer rounded-md border border-slate-300 bg-slate-100 p-2.5 text-[13px] text-slate-700 transition-colors hover:bg-slate-200;
+}
+
+.load-more-button:disabled {
+  @apply cursor-not-allowed opacity-60;
+}
+
+.toast-container {
+  @apply pointer-events-none fixed bottom-4 left-4 right-4 z-[1000] flex flex-col gap-2;
+}
+
+.toast {
+  @apply pointer-events-auto flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-3 text-sm text-white shadow;
+  animation: slideIn 0.3s ease-out;
+}
+
+.toast.success {
+  @apply bg-emerald-500;
+}
+
+.toast.error {
+  @apply bg-red-500;
+}
+
+.toast.info {
+  @apply bg-blue-500;
+}
+
+.detail-header {
+  @apply flex items-center justify-between border-b border-slate-200 px-4 py-3;
+}
+
+.back-button {
+  @apply cursor-pointer rounded-md border-none bg-transparent px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100;
+}
+
+.delete-button {
+  @apply cursor-pointer rounded-md border-none bg-transparent px-3 py-1.5 text-sm text-red-600 hover:bg-red-50;
+}
+
+.detail-content {
+  @apply flex-1 overflow-y-auto p-4;
+}
+
+.detail-metadata {
+  @apply mb-4 flex items-center justify-between border-b border-slate-200 pb-3;
+}
+
+.source-link {
+  @apply flex flex-1 items-center truncate text-[13px] text-sky-500 no-underline hover:underline;
+}
+
+.detail-time {
+  @apply ml-3 whitespace-nowrap text-[11px] text-slate-400;
+}
+
+.markdown-content {
+  @apply text-sm leading-6;
+}
+
+.markdown-content pre {
+  @apply m-0 whitespace-pre-wrap break-words font-mono text-[13px];
+}
+
+.error-state {
+  @apply p-6 text-center text-sm text-red-600;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -58,4 +320,16 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }

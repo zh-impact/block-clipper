@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+.page {
+  @apply flex min-h-full flex-col bg-slate-100 font-sans;
+}
+
+header {
+  @apply border-b border-slate-200 bg-white px-6 py-4;
+}
+
+.header-top-row {
+  @apply mb-3 flex items-center justify-between;
+}
+
+h1 {
+  @apply m-0 text-xl;
+}
+
+.density-toggle {
+  @apply cursor-pointer rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700;
+}
+
+input[type='text'] {
+  @apply w-full max-w-[420px] rounded-md border border-slate-300 px-3 py-2 text-sm;
+}
+
+.toolbar-grid {
+  @apply mt-3 flex flex-wrap gap-2;
+}
+
+.transfer-group {
+  @apply inline-flex items-center gap-1.5 rounded-lg border border-blue-600 bg-blue-50 px-2 py-1.5;
+}
+
+.transfer-label {
+  @apply text-[11px] font-bold uppercase text-blue-900;
+}
+
+.format-select {
+  @apply rounded-md border border-slate-300 bg-white px-1.5 py-1 text-xs font-semibold text-slate-800;
+}
+
+.icon-button {
+  @apply inline-flex h-[30px] w-[30px] items-center justify-center rounded-md border border-blue-600 bg-blue-100 text-blue-700;
+}
+
+.icon-button:disabled,
+.format-select:disabled {
+  @apply cursor-wait opacity-65;
+}
+
+.toolbar-hint {
+  @apply mt-2 text-[11px] text-slate-500;
+}
+
+main {
+  @apply flex-1 overflow-y-auto px-6 py-4;
+}
+
+.import-report {
+  @apply mb-3 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-xs;
+}
+
+.clips-grid {
+  @apply grid gap-2.5;
+}
+
+.clip-card {
+  @apply cursor-pointer rounded-md border border-slate-200 bg-white px-4 py-3;
+}
+
+.clip-header {
+  @apply mb-1.5 flex items-start justify-between;
+}
+
+.clip-title {
+  @apply text-sm font-medium text-slate-700;
+}
+
+.clip-header-right {
+  @apply flex items-center gap-2;
+}
+
+.clip-time,
+.clip-source {
+  @apply text-[11px] text-slate-400;
+}
+
+.clip-preview {
+  @apply mb-1.5 text-xs text-slate-500;
+}
+
+.delete-icon-button {
+  @apply cursor-pointer border-none bg-transparent;
+}
+
+.state-block {
+  @apply px-5 py-10 text-center text-slate-500;
+}
+
+.state-error {
+  @apply text-red-800;
+}
+
+.detail-content {
+  @apply rounded-md border border-slate-200 bg-white p-4;
+}
+
+.detail-meta {
+  @apply mb-3 flex gap-4 border-b border-slate-200 pb-3 text-xs;
+}
+
+pre {
+  @apply rounded bg-slate-50 p-3 whitespace-pre-wrap;
+}
+
+.detail-actions {
+  @apply mt-3 flex flex-wrap gap-2;
+}
+
+.export-single-button,
+.delete-button {
+  @apply cursor-pointer rounded border-none px-3 py-1.5 text-[13px] text-white;
+}
+
+.export-single-button {
+  @apply bg-sky-500;
+}
+
+.delete-button {
+  @apply bg-red-600;
+}
+
+.back-button {
+  @apply cursor-pointer border-none bg-transparent py-2 text-sky-500;
+}
+
+.density-compact header {
+  @apply px-4 py-3;
+}
+
+.density-compact main {
+  @apply px-4 py-3;
+}
+
+.density-compact .transfer-label,
+.density-compact .format-select,
+.density-compact .toolbar-hint {
+  @apply hidden;
+}
+
+.density-compact .transfer-group {
+  @apply border-none bg-transparent p-0;
+}
+
+.density-compact .icon-button {
+  @apply h-[26px] w-[26px];
+}

@@ -1,41 +1,126 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 1rem;
-  text-align: center;
+@import "tailwindcss";
+
+.popup-container {
+  @apply flex max-h-[500px] w-80 flex-col bg-white font-sans;
+}
+
+.popup-header {
+  @apply flex items-center justify-between border-b border-slate-200 px-3.5 py-2.5;
+}
+
+.logo-section {
+  @apply flex items-center gap-1.5;
 }
 
 .logo {
-  padding: .5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #54bc4ae0);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  @apply text-base;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.popup-header h1 {
+  @apply m-0 text-sm font-semibold;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.clip-count {
+  @apply rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500;
 }
 
-.card {
-  padding: 2em;
+.loading-state,
+.empty-state {
+  @apply flex-1 p-5 text-center text-[13px] text-slate-500;
 }
 
-.read-the-docs {
-  color: #888;
+.quick-action-row {
+  @apply px-3.5 pb-0 pt-2.5;
+}
+
+.visual-selector-button {
+  @apply w-full cursor-pointer rounded-md border border-blue-600 bg-blue-50 px-2.5 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100;
+}
+
+.hint {
+  @apply mt-2.5 rounded bg-slate-50 px-2 py-1.5 text-left text-[11px];
+}
+
+.hint kbd {
+  @apply rounded border border-slate-300 bg-white px-1 py-px font-mono text-[10px] font-semibold;
+}
+
+.recent-clips {
+  @apply border-b border-slate-200 px-3.5 py-2.5;
+}
+
+.section-title {
+  @apply mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500;
+}
+
+.clip-item {
+  @apply border-b border-slate-100 py-1.5;
+}
+
+.clip-item:last-child {
+  @apply border-b-0;
+}
+
+.clip-title {
+  @apply mb-0.5 truncate text-xs font-medium text-slate-700;
+}
+
+.clip-preview {
+  @apply mb-0.5 truncate text-[11px] text-slate-500;
+}
+
+.clip-meta {
+  @apply flex items-center justify-between;
+}
+
+.clip-time {
+  @apply text-[10px] text-slate-400;
+}
+
+.clip-source {
+  @apply max-w-[150px] truncate text-[10px] text-slate-400;
+}
+
+.view-all-section {
+  @apply px-3.5 py-2 text-center;
+}
+
+.button-row {
+  @apply flex gap-2;
+}
+
+.view-all-button {
+  @apply flex-1 cursor-pointer rounded px-3 py-1.5 text-xs transition-colors;
+}
+
+.view-all-button.primary {
+  @apply bg-sky-500 text-white hover:bg-sky-600;
+}
+
+.view-all-button.secondary {
+  @apply bg-slate-100 text-slate-700 hover:bg-slate-200;
+}
+
+.help-section {
+  @apply bg-slate-50 px-3.5 py-2.5 text-[11px];
+}
+
+.help-title {
+  @apply mb-1.5 text-[11px] font-semibold text-slate-700;
+}
+
+.help-list {
+  @apply m-0 list-decimal pl-[18px] text-slate-600;
+}
+
+.help-list li {
+  @apply mb-0.5;
+}
+
+.help-link {
+  @apply mt-2.5 w-full cursor-pointer rounded border border-slate-300 bg-white px-2 py-2 text-[11px] text-sky-600 transition-colors hover:border-sky-500 hover:bg-sky-50;
+}
+
+kbd {
+  @apply rounded border border-slate-300 bg-white px-1 py-0.5 font-mono text-[11px];
 }
