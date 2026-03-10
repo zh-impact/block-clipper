@@ -1,34 +1,47 @@
-import { defineConfig } from 'wxt';
+import { defineConfig } from "wxt";
+import tailwindcss from "@tailwindcss/vite";
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
-  modules: ['@wxt-dev/module-react'],
+  modules: ["@wxt-dev/module-react"],
   manifest: {
-    name: 'Block Clipper',
-    description: 'Clip, save, and organize web content instantly. Local storage, Markdown export, full-text search. Privacy-focused.',
-    permissions: ['activeTab', 'storage', 'scripting', 'contextMenus', 'sidePanel', 'notifications', 'windows'],
-    options_page: 'options-page.html',
+    name: "Block Clipper",
+    description:
+      "Clip, save, and organize web content instantly. Local storage, Markdown export, full-text search. Privacy-focused.",
+    permissions: [
+      "activeTab",
+      "storage",
+      "scripting",
+      "contextMenus",
+      "sidePanel",
+      "notifications",
+      "windows",
+    ],
+    options_page: "options-page.html",
     side_panel: {
-      default_path: 'sidepanel.html',
+      default_path: "sidepanel.html",
     },
     commands: {
-      'clip-selection': {
+      "clip-selection": {
         suggested_key: {
-          default: 'Ctrl+Shift+Y',
-          mac: 'Command+Shift+Y',
+          default: "Ctrl+Shift+Y",
+          mac: "Command+Shift+Y",
         },
-        description: 'Clip selected content',
+        description: "Clip selected content",
       },
-      'open-sidepanel': {
+      "open-sidepanel": {
         suggested_key: {
-          default: 'Ctrl+Shift+S',
-          mac: 'Command+Shift+S',
+          default: "Ctrl+Shift+S",
+          mac: "Command+Shift+S",
         },
-        description: 'Open Block Clipper side panel',
+        description: "Open Block Clipper side panel",
       },
     },
     action: {
-      default_title: 'Open Block Clipper',
+      default_title: "Open Block Clipper",
     },
   },
+  vite: () => ({
+    plugins: [tailwindcss()],
+  }),
 });

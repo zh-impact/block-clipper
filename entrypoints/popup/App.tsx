@@ -3,11 +3,11 @@
  * @description Quick access to Block Clipper features
  */
 
-import { type JSX, useState, useEffect } from 'react';
-import { getStorageService } from '../../utils/storage';
-import type { Block } from '../../utils/block-model';
-import { requestVisualSelectorStart } from './visualSelector';
-import './App.css';
+import { type JSX, useState, useEffect } from "react";
+import { getStorageService } from "../../utils/storage";
+import type { Block } from "../../utils/block-model";
+import { requestVisualSelectorStart } from "./visualSelector";
+import "./App.css";
 
 /**
  * Format relative timestamp
@@ -20,7 +20,7 @@ function formatRelativeTime(timestamp: string): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return 'just now';
+  if (diffMins < 1) return "just now";
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
@@ -33,15 +33,15 @@ function formatRelativeTime(timestamp: string): string {
  */
 function getContentPreview(content: string, maxLength = 60): string {
   const plainText = content
-    .replace(/#{1,6}\s/g, '')
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    .replace(/`/g, '')
-    .replace(/\n+/g, ' ')
+    .replace(/#{1,6}\s/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/`/g, "")
+    .replace(/\n+/g, " ")
     .trim();
 
   return plainText.length > maxLength
-    ? plainText.substring(0, maxLength) + '...'
+    ? plainText.substring(0, maxLength) + "..."
     : plainText;
 }
 
@@ -54,15 +54,15 @@ function getBlockTitle(block: Block): string {
     return metadataTitle;
   }
 
-  const firstLine = block.content.split('\n')[0].trim();
+  const firstLine = block.content.split("\n")[0].trim();
   const withoutMarkdown = firstLine
-    .replace(/#{1,6}\s/, '')
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    .replace(/`/g, '')
+    .replace(/#{1,6}\s/, "")
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/`/g, "")
     .trim();
 
-  return withoutMarkdown.substring(0, 30) || 'Untitled Clip';
+  return withoutMarkdown.substring(0, 30) || "Untitled Clip";
 }
 
 /**
@@ -81,7 +81,7 @@ async function openSidePanel(): Promise<void> {
       // Get current window and open side panel directly
       const chromeWindow = await chrome.windows.getCurrent();
       if (chromeWindow.id === undefined) {
-        throw new Error('No active browser window found');
+        throw new Error("No active browser window found");
       }
 
       await chrome.sidePanel.open({ windowId: chromeWindow.id });
@@ -89,7 +89,7 @@ async function openSidePanel(): Promise<void> {
       window.close();
     }
   } catch (error) {
-    console.error('[Popup] Failed to open side panel:', error);
+    console.error("[Popup] Failed to open side panel:", error);
   }
 }
 
@@ -104,9 +104,13 @@ async function startVisualSelector(): Promise<void> {
       return;
     }
 
-    alert(result.error || 'Failed to start visual selector.');
+    alert(result.error || "Failed to start visual selector.");
   } catch (error) {
-    alert(error instanceof Error ? error.message : 'Failed to start visual selector.');
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Failed to start visual selector.",
+    );
   }
 }
 
@@ -115,7 +119,7 @@ async function startVisualSelector(): Promise<void> {
  */
 function openDocumentation(): void {
   chrome.tabs.create({
-    url: 'https://github.com/zh-impact/block-clipper#readme',
+    url: "https://github.com/zh-impact/block-clipper#readme",
   });
   window.close();
 }
@@ -136,7 +140,7 @@ function App(): JSX.Element {
         setBlocks(result.items);
         setClipCount(result.total);
       } catch (error) {
-        console.error('[Popup] Failed to load blocks:', error);
+        console.error("[Popup] Failed to load blocks:", error);
       } finally {
         setIsLoading(false);
       }
@@ -156,7 +160,10 @@ function App(): JSX.Element {
       </header>
 
       <div className="quick-action-row">
-        <button onClick={() => void startVisualSelector()} className="visual-selector-button">
+        <button
+          onClick={() => void startVisualSelector()}
+          className="visual-selector-button"
+        >
           Visual Select Tool
         </button>
       </div>
@@ -179,9 +186,13 @@ function App(): JSX.Element {
             {blocks.slice(0, 3).map((block) => (
               <div key={block.id} className="clip-item">
                 <div className="clip-title">{getBlockTitle(block)}</div>
-                <div className="clip-preview">{getContentPreview(block.content)}</div>
+                <div className="clip-preview">
+                  {getContentPreview(block.content)}
+                </div>
                 <div className="clip-meta">
-                  <span className="clip-time">{formatRelativeTime(block.createdAt)}</span>
+                  <span className="clip-time">
+                    {formatRelativeTime(block.createdAt)}
+                  </span>
                   <span className="clip-source">{block.source.title}</span>
                 </div>
               </div>
@@ -191,10 +202,16 @@ function App(): JSX.Element {
           {clipCount > 0 && (
             <div className="view-all-section">
               <div className="button-row">
-                <button onClick={openOptionsPage} className="view-all-button secondary">
+                <button
+                  onClick={openOptionsPage}
+                  className="view-all-button secondary"
+                >
                   📋 Options
                 </button>
-                <button onClick={openSidePanel} className="view-all-button primary">
+                <button
+                  onClick={openSidePanel}
+                  className="view-all-button primary"
+                >
                   🔲 Side Panel
                 </button>
               </div>
@@ -207,8 +224,12 @@ function App(): JSX.Element {
         <div className="help-title">How to clip:</div>
         <ol className="help-list">
           <li>Select text on any webpage</li>
-          <li>Right-click and choose <strong>"Clip Selection"</strong></li>
-          <li>Or use shortcut: <kbd>Ctrl+Shift+Y</kbd></li>
+          <li>
+            Right-click and choose <strong>"Clip Selection"</strong>
+          </li>
+          <li>
+            Or use shortcut: <kbd>Ctrl+Shift+Y</kbd>
+          </li>
         </ol>
         <button onClick={openDocumentation} className="help-link">
           📖 Documentation & Help
