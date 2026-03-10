@@ -50,7 +50,7 @@
 
 1. 下载或克隆此仓库
 ```bash
-git clone https://github.com/yourusername/block-clipper.git
+git clone https://github.com/zh-impact/block-clipper.git
 cd block-clipper
 ```
 

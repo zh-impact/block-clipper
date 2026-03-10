@@ -115,7 +115,7 @@ async function startVisualSelector(): Promise<void> {
  */
 function openDocumentation(): void {
   chrome.tabs.create({
-    url: 'https://github.com/yourusername/block-clipper#readme',
+    url: 'https://github.com/zh-impact/block-clipper#readme',
   });
   window.close();
 }
