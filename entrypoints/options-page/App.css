@@ -106,8 +106,12 @@ main {
   @apply rounded-md border border-slate-200 bg-white p-4;
 }
 
+.detail-content h2 {
+  @apply text-lg font-semibold text-slate-800;
+}
+
 .detail-meta {
-  @apply mb-3 flex gap-4 border-b border-slate-200 pb-3 text-xs;
+  @apply mb-3 flex gap-4 border-b border-slate-200 pb-3 text-xs text-blue-900;
 }
 
 pre {

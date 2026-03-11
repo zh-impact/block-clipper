@@ -29,6 +29,8 @@ export interface Block {
   id: string;
   type: BlockType;
   content: string;
+  title?: string;         // Optional title for the block (can be AI-generated)
+  aiGenerated?: boolean;  // Flag indicating if title was AI-generated
   metadata: {
     [key: string]: unknown;
   };
@@ -43,6 +45,8 @@ export interface Block {
 export interface CreateBlockInput {
   type: BlockType;
   content: string;
+  title?: string;         // Optional title
+  aiGenerated?: boolean;  // Optional AI generation flag
   metadata?: Record<string, unknown>;
   source: BlockSource;
 }
@@ -98,6 +102,8 @@ export function createBlock(input: CreateBlockInput): Block {
     id: generateUUID(),
     type: input.type,
     content: input.content,
+    title: input.title,
+    aiGenerated: input.aiGenerated,
     metadata: input.metadata || {},
     source: input.source,
     createdAt: now,
@@ -123,6 +129,10 @@ export function isValidBlock(block: unknown): block is Block {
     typeof b.type === 'string' &&
     ['text', 'heading', 'code', 'quote', 'list'].includes(b.type) &&
     typeof b.content === 'string' &&
+    // title is optional, but if present must be a string
+    (b.title === undefined || typeof b.title === 'string') &&
+    // aiGenerated is optional, but if present must be a boolean
+    (b.aiGenerated === undefined || typeof b.aiGenerated === 'boolean') &&
     typeof b.metadata === 'object' &&
     b.metadata !== null &&
     typeof b.source === 'object' &&

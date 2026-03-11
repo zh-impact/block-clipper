@@ -3,7 +3,7 @@
  * @description Handles storage operations and manages extension lifecycle
  */
 
-import type { CreateBlockInput } from '../utils/block-model';
+import type { CreateBlockInput, Block } from '../utils/block-model';
 import { getStorageService, type StorageService } from '../utils/storage';
 
 /**
@@ -23,6 +23,8 @@ type MessageType =
   | 'GET_CLIP_COUNT'
   | 'OPEN_SIDE_PANEL'
   | 'NEW_CLIP_ADDED'
+  | 'BLOCK_UPDATED'
+  | 'UPDATE_BLOCK_TITLE'
   | 'PING';
 
 /**
@@ -30,7 +32,7 @@ type MessageType =
  */
 interface MessagePayload {
   type: MessageType;
-  data?: CreateBlockInput | { error: string } | { title: string; message: string };
+  data?: CreateBlockInput | { error: string } | { title: string; message: string } | { blockId: string; title: string; aiGenerated: boolean } | { block: Block };
 }
 
 /**
@@ -143,13 +145,63 @@ async function handleClipContent(
       showNotification('✓ Content clipped!', 'Saved to Block Clipper');
     }
 
-    return { type: 'CLIP_SUCCESS', data: block };
+    // Return block ID in response for AI title generation
+    return { type: 'CLIP_SUCCESS', data: { blockId: block.id } };
   } catch (error) {
     console.error('[Background] Failed to clip content:', error);
 
     return {
       type: 'CLIP_ERROR',
       data: { error: error instanceof Error ? error.message : 'Failed to clip content' },
+    };
+  }
+}
+
+/**
+ * Handle update block title message
+ * @param data Title update data
+ * @returns Response message
+ */
+async function handleUpdateBlockTitle(
+  data: { blockId: string; title: string; aiGenerated: boolean }
+): Promise<MessagePayload> {
+  try {
+    await initializeStorage();
+
+    if (!storageService) {
+      throw new Error('Storage service not initialized');
+    }
+
+    // Update block title
+    await storageService.updateBlockTitle(data.blockId, data.title, data.aiGenerated);
+
+    // Read the updated block
+    const updatedBlock = await storageService.read(data.blockId);
+
+    if (updatedBlock) {
+      console.log('[Background] Block title updated:', data.blockId, data.title);
+
+      // Notify sidepanel and options about the block update
+      try {
+        chrome.runtime.sendMessage({
+          type: 'BLOCK_UPDATED',
+          data: { block: updatedBlock },
+        }).catch(() => {
+          // Ignore errors - sidepanel/options might not be open
+          console.log('[Background] Sidepanel/options not open or not listening');
+        });
+      } catch (error) {
+        // Ignore - sidepanel/options might not be open
+      }
+    }
+
+    return { type: 'CLIP_SUCCESS' };
+  } catch (error) {
+    console.error('[Background] Failed to update block title:', error);
+
+    return {
+      type: 'CLIP_ERROR',
+      data: { error: error instanceof Error ? error.message : 'Failed to update block title' },
     };
   }
 }
@@ -383,6 +435,10 @@ async function initialize(): Promise<void> {
 
           case 'CLIP_CONTENT':
             response = await handleClipContent(message.data as CreateBlockInput, sender);
+            break;
+
+          case 'UPDATE_BLOCK_TITLE':
+            response = await handleUpdateBlockTitle(message.data as { blockId: string; title: string; aiGenerated: boolean });
             break;
 
           case 'OPEN_VISUAL_SELECTOR':

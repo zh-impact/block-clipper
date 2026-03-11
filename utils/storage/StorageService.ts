@@ -405,6 +405,21 @@ export class StorageService {
   }
 
   /**
+   * Update block title with AI generation flag
+   * @param id Block id
+   * @param title New title
+   * @param aiGenerated Whether title was AI-generated
+   * @returns Updated block
+   */
+  async updateBlockTitle(id: string, title: string, aiGenerated: boolean): Promise<Block> {
+    return this.update(id, {
+      title,
+      aiGenerated,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /**
    * Delete a block
    * @param id Block id
    */

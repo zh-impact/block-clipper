@@ -6,6 +6,7 @@
 import type { Block, CreateBlockInput, BlockSource } from '../utils/block-model';
 import { convertHTMLtoMarkdownSafe } from '../utils/converter';
 import { extractVisibleTextFromElement, findBestCandidateFromElement } from '../utils/visual-selector';
+import { generateAITitle, isAIAvailable } from '../utils/ai/aiTitleGenerator';
 
 /**
  * Message types for content script communication
@@ -16,14 +17,15 @@ type MessageType =
   | 'CLIP_CONTENT'
   | 'CLIP_SUCCESS'
   | 'CLIP_ERROR'
-  | 'PING';
+  | 'PING'
+  | 'UPDATE_BLOCK_TITLE';
 
 /**
  * Message payload
  */
 interface MessagePayload {
   type: MessageType;
-  data?: CreateBlockInput | { error: string };
+  data?: CreateBlockInput | { error: string } | { blockId: string; title: string; aiGenerated: boolean };
 }
 
 /**
@@ -206,6 +208,14 @@ async function executeClip(): Promise<void> {
   if (response) {
     if (response.type === 'CLIP_SUCCESS') {
       console.log('[Content Script] Clipping successful');
+
+      // Extract block ID from response data if available
+      const blockId = (response.data as { blockId?: string })?.blockId;
+      if (blockId) {
+        // Trigger async AI title generation
+        void generateAndUpdateTitle(blockId, markdown);
+      }
+
       showNotification('✓ Content clipped!', 'Saved to Block Clipper');
     } else if (response.type === 'CLIP_ERROR') {
       console.error('[Content Script] Clipping failed (error response):', response.data);
@@ -216,6 +226,54 @@ async function executeClip(): Promise<void> {
     }
   } else {
     console.warn('[Content Script] No response received from background');
+  }
+}
+
+/**
+ * Generate AI title and update the block asynchronously
+ * @param blockId - ID of the block to update
+ * @param content - Content to generate title from
+ */
+async function generateAndUpdateTitle(blockId: string, content: string): Promise<void> {
+  try {
+    // Check if AI is available
+    if (!(await isAIAvailable())) {
+      console.log('[Content Script] AI not available, skipping title generation');
+      return;
+    }
+
+    // Check content length (AI API has limits)
+    const maxContentLength = 10000;
+    const truncatedContent = content.length > maxContentLength
+      ? content.substring(0, maxContentLength)
+      : content;
+
+    // Generate AI title
+    console.log('[Content Script] Generating AI title for block:', blockId);
+    const aiTitle = await generateAITitle(truncatedContent);
+
+    // Validate generated title
+    if (!aiTitle || aiTitle.trim().length === 0) {
+      console.warn('[Content Script] AI generated empty title, skipping update');
+      return;
+    }
+
+    // Update block with AI-generated title
+    const updateResponse = await sendMessage('UPDATE_BLOCK_TITLE', {
+      blockId,
+      title: aiTitle,
+      aiGenerated: true,
+    } as { blockId: string; title: string; aiGenerated: boolean });
+
+    if (updateResponse?.type === 'CLIP_SUCCESS') {
+      console.log('[Content Script] AI title updated successfully:', aiTitle);
+    } else {
+      console.warn('[Content Script] Failed to update AI title');
+    }
+  } catch (error) {
+    // Log error but don't show notification (silent fallback)
+    console.warn('[Content Script] AI title generation failed:', error);
+    // Fallback: block will use original title from metadata or empty string
   }
 }
 
@@ -473,6 +531,13 @@ async function confirmSelectorCapture(candidate: HTMLElement): Promise<void> {
   try {
     const response = await sendMessage('CLIP_CONTENT', input);
     if (response?.type === 'CLIP_SUCCESS') {
+      // Extract block ID from response data if available
+      const blockId = (response.data as { blockId?: string })?.blockId;
+      if (blockId) {
+        // Trigger async AI title generation
+        void generateAndUpdateTitle(blockId, text);
+      }
+
       showNotification('✓ Content clipped!', 'Visual selection saved to Block Clipper');
     } else {
       const error = (response?.data as { error?: string } | undefined)?.error || 'Failed to save visual selection';
