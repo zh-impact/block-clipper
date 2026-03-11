@@ -1,23 +1,26 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type JSX,
-} from "react";
-import {
-  IconClipboardCopy,
-  IconClipboardPlus,
-  IconFileExport,
-  IconFileImport,
-} from "@tabler/icons-react";
-import type { Block } from "../../utils/block-model";
-import { getStorageService } from "../../utils/storage";
-import type { ExportFormat } from "../../utils/exporter";
-import type { ImportFormat } from "../../utils/importer";
-import { getImportFileSizeError } from "../sidepanel/importFlow";
-import "./App.css";
+/**
+ * Options Page App (Refactored)
+ * @description Options page using shared hooks and components
+ */
+
+import React, { type JSX, useState, useEffect, useMemo, useCallback, type ChangeEvent } from 'react'
+
+import { IconTrash } from '@tabler/icons-react'
+
+import type { Block } from '../../utils/block-model'
+import { useNotification } from '../../hooks/useNotification'
+import { useCrossPageSync } from '../../hooks/useCrossPageSync'
+import { useI18n } from '../../hooks/useI18n'
+import { SearchBar } from '../../components/search/SearchBar'
+import { ImportControls } from '../../components/import-export/ImportControls'
+import { ExportControls } from '../../components/import-export/ExportControls'
+import { ToastContainer } from '../../components/ui/Toast'
+import { formatRelativeTime, getContentPreview, getBlockTitle } from '../../utils/blockHelpers'
+import { getStorageService } from '../../utils/storage'
+import type { ExportFormat } from '../../utils/exporter'
+import type { ImportFormat } from '../../utils/importer'
+import { getImportFileSizeError } from '../sidepanel/importFlow'
+import './App.css'
 import {
   type DensityMode,
   buildExportContent,
@@ -25,480 +28,576 @@ import {
   exportToFile,
   getEffectiveFormat,
   getImportAcceptByFormat,
-  importFromClipboard,
+  importFromClipboard as importFromClipboardUtil,
   importFromText,
-} from "./transfer";
+} from './transfer'
 
-type View = "list" | "detail";
+type View = 'list' | 'detail'
 
 interface ImportReport {
-  imported: number;
-  skipped: number;
-  failed: number;
-  errors: string[];
-}
-
-function formatRelativeTime(timestamp: string): string {
-  const now = Date.now();
-  const then = new Date(timestamp).getTime();
-  const diffMs = now - then;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  return new Date(timestamp).toLocaleDateString();
-}
-
-function getContentPreview(content: string, maxLength = 100): string {
-  const plainText = content
-    .replace(/#{1,6}\s/g, "")
-    .replace(/\*\*/g, "")
-    .replace(/\*/g, "")
-    .replace(/`/g, "")
-    .replace(/\n+/g, " ")
-    .trim();
-
-  return plainText.length > maxLength
-    ? `${plainText.substring(0, maxLength)}...`
-    : plainText;
-}
-
-function getBlockTitle(block: Block): string {
-  // First, check if block has a title field
-  if (block.title && block.title.trim()) {
-    return block.title.trim();
-  }
-
-  // Fall back to metadata.title for backward compatibility
-  const metadataTitle = (block.metadata.title as string | undefined)?.trim();
-  if (metadataTitle) return metadataTitle;
-
-  const firstLine = block.content.split("\n")[0].trim();
-  const withoutMarkdown = firstLine
-    .replace(/#{1,6}\s/, "")
-    .replace(/\*\*/g, "")
-    .replace(/\*/g, "")
-    .replace(/`/g, "")
-    .trim();
-
-  return withoutMarkdown.substring(0, 50) || "Untitled Clip";
+  imported: number
+  skipped: number
+  failed: number
+  errors: string[]
 }
 
 export default function App(): JSX.Element {
-  const importInputRef = useRef<HTMLInputElement | null>(null);
-  const [blocks, setBlocks] = useState<Block[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [view, setView] = useState<View>("list");
-  const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("json");
-  const [importFormat, setImportFormat] = useState<ImportFormat>("json");
-  const [density, setDensity] = useState<DensityMode>("standard");
-  const [importReport, setImportReport] = useState<ImportReport | null>(null);
+  const importInputRef = React.useRef<HTMLInputElement | null>(null)
+  const [blocks, setBlocks] = useState<Block[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [view, setView] = useState<View>('list')
+  const [selectedBlock, setSelectedBlock] = useState<Block | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('json')
+  const [importFormat, setImportFormat] = useState<ImportFormat>('json')
+  const [density, setDensity] = useState<DensityMode>('standard')
+  const [importReport, setImportReport] = useState<ImportReport | null>(null)
 
+  // Batch selection state
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // Shared hooks
+  const { toasts, showToast } = useNotification()
+  const { t } = useI18n()
+
+  // Cross-page sync
+  useCrossPageSync({
+    onNewClip: () => {
+      void loadBlocks()
+    },
+    onBlockUpdated: (block) => {
+      setBlocks((prevBlocks) => prevBlocks.map((b) => (b.id === block.id ? block : b)))
+      if (selectedBlock?.id === block.id) {
+        setSelectedBlock(block)
+      }
+    },
+    onBlockDeleted: (blockId) => {
+      setBlocks((prevBlocks) => prevBlocks.filter((block) => block.id !== blockId))
+      if (selectedBlock?.id === blockId) {
+        setSelectedBlock(null)
+        setView('list')
+      }
+    },
+    onBlocksReloaded: () => {
+      void loadBlocks()
+    },
+    onImportCompleted: (count) => {
+      // Just reload data, don't show toast (background will show notification)
+      void loadBlocks()
+    },
+  })
+
+  // Filter blocks client-side (Options page pattern)
   const filteredBlocks = useMemo(() => {
-    if (!query.trim()) return blocks;
+    if (!query.trim()) return blocks
 
-    const keyword = query.toLowerCase();
+    const keyword = query.toLowerCase()
     return blocks.filter(
       (block) =>
         block.content.toLowerCase().includes(keyword) ||
         block.source.title.toLowerCase().includes(keyword),
-    );
-  }, [blocks, query]);
+    )
+  }, [blocks, query])
 
   const loadBlocks = async (): Promise<void> => {
-    setError(null);
+    setError(null)
 
     try {
-      const storageService = getStorageService();
-      await storageService.initialize();
+      const storageService = getStorageService()
+      await storageService.initialize()
 
-      const all: Block[] = [];
-      let page = 1;
-      const limit = 200;
+      const all: Block[] = []
+      let page = 1
+      const limit = 200
 
       while (true) {
-        const result = await storageService.query({ page, limit });
-        all.push(...result.items);
-        if (page >= result.totalPages || result.items.length === 0) break;
-        page += 1;
+        const result = await storageService.query({ page, limit })
+        all.push(...result.items)
+        if (page >= result.totalPages || result.items.length === 0) break
+        page += 1
       }
 
-      all.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
-      setBlocks(all);
+      all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      setBlocks(all)
       if (selectedBlock) {
-        const refreshed =
-          all.find((item) => item.id === selectedBlock.id) ?? null;
-        setSelectedBlock(refreshed);
+        const refreshed = all.find((item) => item.id === selectedBlock.id) ?? null
+        setSelectedBlock(refreshed)
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load clips");
+      setError(e instanceof Error ? e.message : 'Failed to load clips')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    void loadBlocks();
-  }, []);
+    void loadBlocks()
+  }, [])
 
-  // Listen for messages from background (new clip added, block updated, etc.)
-  useEffect(() => {
-    const handleMessage = (message: any) => {
-      console.log("[Options App] Received message:", message);
-
-      if (message.type === "NEW_CLIP_ADDED") {
-        // Reload blocks to show the new clip
-        void loadBlocks();
-      } else if (message.type === "BLOCK_UPDATED") {
-        // Update specific block in the list
-        const updatedBlock = message.data.block as Block;
-        setBlocks((prevBlocks) =>
-          prevBlocks.map((block) =>
-            block.id === updatedBlock.id ? updatedBlock : block,
-          ),
-        );
-
-        // Update selected block if it's the same one
-        if (selectedBlock?.id === updatedBlock.id) {
-          setSelectedBlock(updatedBlock);
-        }
+  // Batch selection handlers
+  const toggleSelection = (blockId: string): void => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(blockId)) {
+        newSet.delete(blockId)
+      } else {
+        newSet.add(blockId)
       }
-    };
+      return newSet
+    })
+  }
 
-    // Listen for messages from background
-    chrome.runtime.onMessage.addListener(handleMessage);
+  const toggleSelectAll = (): void => {
+    if (selectedIds.size === filteredBlocks.length) {
+      // Deselect all
+      setSelectedIds(new Set())
+    } else {
+      // Select all filtered blocks
+      setSelectedIds(new Set(filteredBlocks.map((b) => b.id)))
+    }
+  }
 
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-    };
-  }, [selectedBlock]);
+  const exitSelectionMode = (): void => {
+    setIsSelectionMode(false)
+    setSelectedIds(new Set())
+  }
+
+  const isAllSelected = filteredBlocks.length > 0 && selectedIds.size === filteredBlocks.length
+  const isSomeSelected = selectedIds.size > 0 && !isAllSelected
 
   const handleDelete = async (block: Block): Promise<void> => {
-    if (!confirm(`Delete "${getBlockTitle(block)}"?`)) {
-      return;
+    if (!confirm(t('clips_deleteConfirm', [getBlockTitle(block)]))) {
+      return
     }
 
     try {
-      const storageService = getStorageService();
-      await storageService.delete(block.id);
-      setView("list");
-      setSelectedBlock(null);
-      await loadBlocks();
+      const storageService = getStorageService()
+      await storageService.delete(block.id)
+
+      // Broadcast deletion to other pages through background
+      chrome.runtime
+        .sendMessage({
+          type: 'BLOCK_DELETED',
+          data: { deletedBlockId: block.id },
+        })
+        .catch(() => {
+          console.log('[Options] Failed to broadcast deletion')
+        })
+
+      showToast(t('clips_deleteSuccess'), 'success')
+      setView('list')
+      setSelectedBlock(null)
+      await loadBlocks()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to delete clip");
+      showToast(e instanceof Error ? e.message : t('clips_deleteFailed'), 'error')
     }
-  };
+  }
+
+  const handleBatchDelete = async (): Promise<void> => {
+    if (selectedIds.size === 0) return
+
+    const count = selectedIds.size
+    if (!confirm(t('options_batchDeleteConfirm', [count.toString()]))) {
+      return
+    }
+
+    try {
+      const storageService = getStorageService()
+
+      // Delete all selected blocks
+      for (const blockId of selectedIds) {
+        await storageService.delete(blockId)
+
+        // Broadcast each deletion to other pages
+        chrome.runtime
+          .sendMessage({
+            type: 'BLOCK_DELETED',
+            data: { deletedBlockId: blockId },
+          })
+          .catch(() => {
+            console.log('[Options] Failed to broadcast deletion')
+          })
+      }
+
+      showToast(t('options_batchDeleteSuccess', [count.toString()]), 'success')
+      exitSelectionMode()
+      await loadBlocks()
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : t('clips_deleteFailed'), 'error')
+    }
+  }
 
   const handleExportFile = async (): Promise<void> => {
-    if (isExporting) return;
+    if (isExporting) return
     if (blocks.length === 0) {
-      alert("No clips to export");
-      return;
+      showToast(t('export_noClipsToExport'), 'info')
+      return
     }
 
-    setIsExporting(true);
+    setIsExporting(true)
     try {
-      const effective = getEffectiveFormat(density, exportFormat);
-      exportToFile(blocks, effective);
+      const effective = getEffectiveFormat(density, exportFormat)
+      exportToFile(blocks, effective)
+      showToast(t('export_exportSuccess', [blocks.length, effective.toUpperCase()]), 'success')
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : t('export_exportFailed'), 'error')
     } finally {
-      setIsExporting(false);
+      setIsExporting(false)
     }
-  };
+  }
 
   const handleExportClipboard = async (): Promise<void> => {
-    if (isExporting) return;
+    if (isExporting) return
     if (blocks.length === 0) {
-      alert("No clips to export");
-      return;
+      showToast(t('export_noClipsToExport'), 'info')
+      return
     }
 
-    setIsExporting(true);
+    setIsExporting(true)
     try {
-      const effective = getEffectiveFormat(density, exportFormat);
-      await exportToClipboard(blocks, effective);
-      alert(
-        `Copied ${blocks.length} ${effective.toUpperCase()} clips to clipboard.`,
-      );
+      const effective = getEffectiveFormat(density, exportFormat)
+      await exportToClipboard(blocks, effective)
+      showToast(t('export_copySuccess', [blocks.length, effective.toUpperCase()]), 'success')
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to copy export");
+      showToast(e instanceof Error ? e.message : t('export_copyFailed'), 'error')
     } finally {
-      setIsExporting(false);
+      setIsExporting(false)
     }
-  };
+  }
 
   const onImportButtonClick = (): void => {
-    if (isImporting) return;
+    if (isImporting) return
 
-    const effective = getEffectiveFormat(density, importFormat);
-    const accept = getImportAcceptByFormat(effective);
-    importInputRef.current?.setAttribute("accept", accept);
-    importInputRef.current?.click();
-  };
+    const effective = getEffectiveFormat(density, importFormat)
+    const accept = getImportAcceptByFormat(effective)
+    importInputRef.current?.setAttribute('accept', accept)
+    importInputRef.current?.click()
+  }
 
   const handleImportResult = async (content: string): Promise<void> => {
-    const effective = getEffectiveFormat(density, importFormat);
-    const storageService = getStorageService();
-    const result = await importFromText(content, effective, storageService);
+    const effective = getEffectiveFormat(density, importFormat)
+    const storageService = getStorageService()
+    const result = await importFromText(content, effective, storageService)
     setImportReport({
       imported: result.imported,
       skipped: result.skipped,
       failed: result.failed,
       errors: result.errors,
-    });
-    await loadBlocks();
-  };
+    })
 
-  const handleImportFileChange = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ): Promise<void> => {
-    const file = event.target.files?.[0];
-    event.currentTarget.value = "";
-    if (!file) return;
+    if (result.imported > 0) {
+      // Broadcast import completion to other pages through background
+      // Background will show system notification, and other pages will show their own toasts
+      chrome.runtime
+        .sendMessage({
+          type: 'IMPORT_COMPLETED',
+          data: { count: result.imported },
+        })
+        .catch(() => {
+          console.log('[Options] Failed to broadcast import completion')
+        })
+    }
 
-    const sizeError = getImportFileSizeError(file.size);
+    await loadBlocks()
+  }
+
+  const handleImportFileChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0]
+    event.currentTarget.value = ''
+    if (!file) return
+
+    const sizeError = getImportFileSizeError(file.size)
     if (sizeError) {
       setImportReport({
         imported: 0,
         skipped: 0,
         failed: 1,
         errors: [sizeError],
-      });
-      return;
+      })
+      showToast(sizeError, 'error')
+      return
     }
 
-    setIsImporting(true);
+    setIsImporting(true)
     try {
-      const content = await file.text();
-      await handleImportResult(content);
+      const content = await file.text()
+      await handleImportResult(content)
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Import failed";
+      const message = e instanceof Error ? e.message : 'Import failed'
       setImportReport({
         imported: 0,
         skipped: 0,
         failed: 1,
         errors: [message],
-      });
+      })
+      showToast(message, 'error')
     } finally {
-      setIsImporting(false);
+      setIsImporting(false)
     }
-  };
+  }
+
+  // Wrapper for ImportControls component that expects (file: File) => void
+  const handleImportFile = (file: File) => {
+    const sizeError = getImportFileSizeError(file.size)
+    if (sizeError) {
+      setImportReport({
+        imported: 0,
+        skipped: 0,
+        failed: 1,
+        errors: [sizeError],
+      })
+      showToast(sizeError, 'error')
+      return
+    }
+
+    setIsImporting(true)
+    void (async () => {
+      try {
+        const content = await file.text()
+        await handleImportResult(content)
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'Import failed'
+        setImportReport({
+          imported: 0,
+          skipped: 0,
+          failed: 1,
+          errors: [message],
+        })
+        showToast(message, 'error')
+      } finally {
+        setIsImporting(false)
+      }
+    })()
+  }
 
   const handleImportClipboard = async (): Promise<void> => {
-    if (isImporting) return;
+    if (isImporting) return
 
-    setIsImporting(true);
+    setIsImporting(true)
     try {
-      const effective = getEffectiveFormat(density, importFormat);
-      const storageService = getStorageService();
-      const result = await importFromClipboard(effective, storageService);
+      const effective = getEffectiveFormat(density, importFormat)
+      const storageService = getStorageService()
+      const result = await importFromClipboardUtil(effective, storageService)
       setImportReport({
         imported: result.imported,
         skipped: result.skipped,
         failed: result.failed,
         errors: result.errors,
-      });
-      await loadBlocks();
+      })
+
+      if (result.imported > 0) {
+        // Broadcast import completion to other pages through background
+        // Background will show system notification, and other pages will show their own toasts
+        chrome.runtime
+          .sendMessage({
+            type: 'IMPORT_COMPLETED',
+            data: { count: result.imported },
+          })
+          .catch(() => {
+            console.log('[Options] Failed to broadcast import completion')
+          })
+      }
+
+      await loadBlocks()
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Clipboard import failed";
+      const message = e instanceof Error ? e.message : t('import_clipboardImportFailed')
       setImportReport({
         imported: 0,
         skipped: 0,
         failed: 1,
         errors: [message],
-      });
+      })
+      showToast(message, 'error')
     } finally {
-      setIsImporting(false);
+      setIsImporting(false)
     }
-  };
+  }
 
   const renderList = (): JSX.Element => {
     if (isLoading) {
-      return <div className="state-block">Loading clips...</div>;
+      return <div className="state-block">{t('common_loadingClips')}</div>
     }
 
     if (error) {
-      return <div className="state-block state-error">{error}</div>;
+      return <div className="state-block state-error">{error}</div>
     }
 
     if (filteredBlocks.length === 0) {
-      return <div className="state-block">No clips found.</div>;
+      return <div className="state-block">{t('common_noClipsFound')}</div>
     }
 
     return (
-      <div id="clips" className="clips-grid">
-        {filteredBlocks.map((block) => (
-          <article
-            className="clip-card"
-            key={block.id}
-            onClick={() => {
-              setSelectedBlock(block);
-              setView("detail");
-            }}
-          >
-            <div className="clip-header">
-              <div className="clip-title">{getBlockTitle(block)}</div>
-              <div className="clip-header-right">
-                <div className="clip-time">
-                  {formatRelativeTime(block.createdAt)}
-                </div>
+      <>
+        {/* Batch selection toolbar */}
+        {isSelectionMode && (
+          <div className="batch-selection-toolbar">
+            <div className="batch-selection-left">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={(input) => {
+                  if (input) {
+                    input.indeterminate = isSomeSelected
+                  }
+                }}
+                onChange={toggleSelectAll}
+                className="batch-checkbox"
+              />
+              <span className="batch-selection-count">
+                {selectedIds.size > 0
+                  ? `${selectedIds.size} ${t('options_selectedCount')}`
+                  : t('options_selectAll')}
+              </span>
+            </div>
+            <div className="batch-selection-right">
+              {selectedIds.size > 0 && (
                 <button
-                  className="delete-icon-button"
+                  className="batch-delete-button"
                   type="button"
-                  title="Delete clip"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void handleDelete(block);
-                  }}
+                  onClick={() => void handleBatchDelete()}
                 >
-                  🗑️
+                  🗑️ {t('options_deleteSelected')}
                 </button>
-              </div>
+              )}
+              <button className="batch-cancel-button" type="button" onClick={exitSelectionMode}>
+                {t('common_cancel')}
+              </button>
             </div>
-            <div className="clip-preview">
-              {getContentPreview(block.content)}
-            </div>
-            <div className="clip-source">{block.source.title}</div>
-          </article>
-        ))}
-      </div>
-    );
-  };
+          </div>
+        )}
+
+        {/* Normal toolbar when not in selection mode */}
+        {!isSelectionMode && (
+          <div className="normal-toolbar">
+            <button
+              className="batch-select-button"
+              type="button"
+              onClick={() => setIsSelectionMode(true)}
+            >
+              ☑️ {t('options_batchSelect')}
+            </button>
+          </div>
+        )}
+
+        <div id="clips" className={`clips-grid ${isSelectionMode ? 'selection-mode' : ''}`}>
+          {filteredBlocks.map((block) => {
+            const isSelected = selectedIds.has(block.id)
+            return (
+              <article
+                className={`clip-card ${isSelected ? 'selected' : ''} ${isSelectionMode ? 'selection-mode' : ''}`}
+                key={block.id}
+                onClick={() => {
+                  if (!isSelectionMode) {
+                    setSelectedBlock(block)
+                    setView('detail')
+                  }
+                }}
+              >
+                <div className="clip-header">
+                  <div className="clip-header-left">
+                    {isSelectionMode && (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelection(block.id)}
+                        className="clip-checkbox"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
+                    <div className="clip-title">{getBlockTitle(block)}</div>
+                  </div>
+                  <div className="clip-header-right">
+                    <div className="clip-time">{formatRelativeTime(block.createdAt)}</div>
+                    {!isSelectionMode && (
+                      <button
+                        className="delete-icon-button"
+                        type="button"
+                        title={t('common_delete')}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void handleDelete(block)
+                        }}
+                      >
+                        <IconTrash size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="clip-preview">{getContentPreview(block.content)}</div>
+                <div className="clip-source">{block.source.title}</div>
+              </article>
+            )
+          })}
+        </div>
+      </>
+    )
+  }
 
   const selectedExportContent = selectedBlock
     ? {
-        json: buildExportContent([selectedBlock], "json"),
-        markdown: buildExportContent([selectedBlock], "markdown"),
+        json: buildExportContent([selectedBlock], 'json'),
+        markdown: buildExportContent([selectedBlock], 'markdown'),
       }
-    : null;
+    : null
 
   return (
-    <div className={`page ${density === "compact" ? "density-compact" : ""}`}>
+    <div className={`page ${density === 'compact' ? 'density-compact' : ''}`}>
       <header>
         <div className="header-top-row">
-          <h1>📋 Block Clipper</h1>
+          <h1>📋 {t('extensionName')}</h1>
           <button
             id="density-toggle"
             className="density-toggle"
             type="button"
-            onClick={() =>
-              setDensity((prev) =>
-                prev === "standard" ? "compact" : "standard",
-              )
-            }
+            onClick={() => setDensity((prev) => (prev === 'standard' ? 'compact' : 'standard'))}
           >
-            {density === "standard" ? "Compact" : "Standard"}
+            {density === 'standard' ? t('common_compact') : t('common_standard')}
           </button>
         </div>
 
-        <div className="flex">
-          <input
-            type="text"
+        <div className="flex items-center gap-2">
+          <SearchBar
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search clips..."
-            aria-label="Search clips"
+            onChange={setQuery}
+            onClear={() => setQuery('')}
+            placeholder={t('search_placeholder')}
           />
 
           <div className="toolbar-grid">
-            <section className="transfer-group" aria-label="Export controls">
-              <span className="transfer-label">Export</span>
-              {density === "standard" && (
-                <select
-                  className="format-select"
-                  value={exportFormat}
-                  onChange={(event) =>
-                    setExportFormat(event.target.value as ExportFormat)
-                  }
-                >
-                  <option value="json">JSON</option>
-                  <option value="markdown">Markdown</option>
-                </select>
-              )}
-              <button
-                id="export-file"
-                className="icon-button"
-                type="button"
-                aria-label="Export to file"
-                onClick={() => void handleExportFile()}
-                disabled={isExporting || blocks.length === 0}
-              >
-                <IconFileExport size={16} stroke={2} aria-hidden="true" />
-              </button>
-              <button
-                id="export-clipboard"
-                className="icon-button"
-                type="button"
-                aria-label="Copy to clipboard"
-                onClick={() => void handleExportClipboard()}
-                disabled={isExporting || blocks.length === 0}
-              >
-                <IconClipboardCopy size={16} stroke={2} aria-hidden="true" />
-              </button>
-            </section>
+            <ExportControls
+              isExporting={isExporting}
+              exportFormat={exportFormat}
+              density={density === 'compact' ? 'compact' : 'standard'}
+              onExportFormatChange={setExportFormat}
+              onExportFile={handleExportFile}
+              onExportClipboard={handleExportClipboard}
+            />
 
-            <section className="transfer-group" aria-label="Import controls">
-              <span className="transfer-label">Import</span>
-              {density === "standard" && (
-                <select
-                  className="format-select"
-                  value={importFormat}
-                  onChange={(event) =>
-                    setImportFormat(event.target.value as ImportFormat)
-                  }
-                >
-                  <option value="json">JSON</option>
-                  <option value="markdown">Markdown</option>
-                </select>
-              )}
-              <button
-                id="import-file"
-                className="icon-button"
-                type="button"
-                aria-label="Import from file"
-                onClick={onImportButtonClick}
-                disabled={isImporting}
-              >
-                <IconFileImport size={16} stroke={2} aria-hidden="true" />
-              </button>
-              <button
-                id="import-clipboard"
-                className="icon-button"
-                type="button"
-                aria-label="Import from clipboard"
-                onClick={() => void handleImportClipboard()}
-                disabled={isImporting}
-              >
-                <IconClipboardPlus size={16} stroke={2} aria-hidden="true" />
-              </button>
-            </section>
+            <ImportControls
+              isImporting={isImporting}
+              importFormat={importFormat}
+              density={density === 'compact' ? 'compact' : 'standard'}
+              onImportFormatChange={setImportFormat}
+              onImportFile={handleImportFile}
+              onImportClipboard={handleImportClipboard}
+              disabled={isImporting}
+            />
           </div>
         </div>
 
-        {density === "standard" && (
-          <div className="toolbar-hint">
-            File and clipboard actions use the selected format.
-          </div>
+        {density === 'standard' && (
+          <div className="toolbar-hint">{t('sidepanel_transferHint')}</div>
         )}
 
         <input
-          ref={importInputRef}
+          ref={importInputRef as React.RefObject<HTMLInputElement>}
           id="import-input"
           type="file"
-          style={{ display: "none" }}
+          style={{ display: 'none' }}
           onChange={(event) => void handleImportFileChange(event)}
         />
       </header>
@@ -506,95 +605,86 @@ export default function App(): JSX.Element {
       <main>
         {importReport && (
           <div className="import-report" role="status">
-            Imported: {importReport.imported} · Skipped: {importReport.skipped}{" "}
-            · Failed: {importReport.failed}
+            {t('import_importReport', [
+              importReport.imported,
+              importReport.skipped,
+              importReport.failed,
+            ])}
             {importReport.errors.length > 0 && (
-              <div className="state-error">
-                {importReport.errors.slice(0, 2).join(" | ")}
-              </div>
+              <div className="state-error">{importReport.errors.slice(0, 2).join(' | ')}</div>
             )}
           </div>
         )}
 
-        {view === "list" && renderList()}
+        {view === 'list' && renderList()}
 
-        {view === "detail" && selectedBlock && (
+        {view === 'detail' && selectedBlock && (
           <div id="detail" className="detail active">
             <div className="detail-header">
-              <button
-                className="back-button"
-                type="button"
-                onClick={() => setView("list")}
-              >
-                ← Back to list
+              <button className="back-button" type="button" onClick={() => setView('list')}>
+                {t('common_backToList')}
               </button>
             </div>
             <div className="detail-content">
               <h2>{getBlockTitle(selectedBlock)}</h2>
               <div className="detail-meta">
-                <a
-                  href={selectedBlock.source.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href={selectedBlock.source.url} target="_blank" rel="noreferrer">
                   {selectedBlock.source.title}
                 </a>
-                <span>
-                  {new Date(selectedBlock.createdAt).toLocaleString()}
-                </span>
+                <span>{new Date(selectedBlock.createdAt).toLocaleString()}</span>
               </div>
               <pre>{selectedBlock.content}</pre>
               <div className="detail-actions">
                 <button
                   className="export-single-button"
                   type="button"
-                  onClick={() => exportToFile([selectedBlock], "json")}
+                  onClick={() => exportToFile([selectedBlock], 'json')}
                 >
-                  Export JSON
+                  {t('export_exportJson')}
                 </button>
                 <button
                   className="export-single-button"
                   type="button"
                   onClick={() => {
-                    if (!selectedExportContent) return;
-                    void navigator.clipboard.writeText(
-                      selectedExportContent.json,
-                    );
+                    if (!selectedExportContent) return
+                    void navigator.clipboard.writeText(selectedExportContent.json)
                   }}
                 >
-                  Copy JSON
+                  {t('export_copyJson')}
                 </button>
                 <button
                   className="export-single-button"
                   type="button"
-                  onClick={() => exportToFile([selectedBlock], "markdown")}
+                  onClick={() => exportToFile([selectedBlock], 'markdown')}
                 >
-                  Export Markdown
+                  {t('export_exportMarkdown')}
                 </button>
                 <button
                   className="export-single-button"
                   type="button"
                   onClick={() => {
-                    if (!selectedExportContent) return;
-                    void navigator.clipboard.writeText(
-                      selectedExportContent.markdown,
-                    );
+                    if (!selectedExportContent) return
+                    void navigator.clipboard.writeText(selectedExportContent.markdown)
                   }}
                 >
-                  Copy Markdown
+                  {t('export_copyMarkdown')}
                 </button>
                 <button
-                  className="delete-button"
+                  className="delete-button flex items-center gap-1"
                   type="button"
                   onClick={() => void handleDelete(selectedBlock)}
                 >
-                  Delete
+                  {t('common_delete')}
+                  <IconTrash size={16} />
                 </button>
               </div>
             </div>
           </div>
         )}
       </main>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} />
     </div>
-  );
+  )
 }

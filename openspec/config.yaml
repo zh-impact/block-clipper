@@ -11,6 +11,7 @@ context: |
   - React 19
   - TypeScript 5.9
   - IndexedDB for storage
+  - PNPM for package management
 
   Architecture:
   - Content Scripts: Capture content from web pages

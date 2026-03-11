@@ -1,0 +1,578 @@
+{
+  "extensionName": {
+    "message": "Block Clipper",
+    "description": "Name of the extension"
+  },
+  "extensionDescription": {
+    "message": "Clip, save, and organize web content instantly. Local storage, Markdown export, full-text search. Privacy-focused.",
+    "description": "Description of the extension"
+  },
+  "popup_clipCount": {
+    "message": "clips",
+    "description": "Label for number of clips in popup header"
+  },
+  "popup_visualSelectTool": {
+    "message": "Visual Select Tool",
+    "description": "Button label for visual selector tool"
+  },
+  "popup_noClipsYet": {
+    "message": "No clips yet",
+    "description": "Empty state message in popup"
+  },
+  "popup_recentClips": {
+    "message": "Recent Clips",
+    "description": "Section title for recent clips"
+  },
+  "popup_optionsButton": {
+    "message": "Options",
+    "description": "Button label to open options page"
+  },
+  "popup_sidePanelButton": {
+    "message": "Side Panel",
+    "description": "Button label to open side panel"
+  },
+  "popup_howToClip": {
+    "message": "How to clip:",
+    "description": "Help section title"
+  },
+  "popup_howToClipStep1": {
+    "message": "Select text on any webpage",
+    "description": "First step in how to clip guide"
+  },
+  "popup_howToClipStep2": {
+    "message": "Right-click and choose \"Clip Selection\"",
+    "description": "Second step in how to clip guide"
+  },
+  "popup_howToClipStep3": {
+    "message": "Or use shortcut: Ctrl+Shift+Y",
+    "description": "Third step in how to clip guide"
+  },
+  "popup_documentationHelp": {
+    "message": "Documentation & Help",
+    "description": "Link text to documentation"
+  },
+  "common_loading": {
+    "message": "Loading...",
+    "description": "Generic loading message"
+  },
+  "common_loadingClips": {
+    "message": "Loading clips...",
+    "description": "Loading message for clips"
+  },
+  "common_noClipsFound": {
+    "message": "No clips found.",
+    "description": "Message when search returns no results"
+  },
+  "common_delete": {
+    "message": "Delete",
+    "description": "Delete button label"
+  },
+  "common_deleteButton": {
+    "message": "🗑️ Delete",
+    "description": "Delete button with icon"
+  },
+  "common_back": {
+    "message": "Back",
+    "description": "Back button label"
+  },
+  "common_backToList": {
+    "message": "← Back to list",
+    "description": "Back button label in detail view"
+  },
+  "common_compact": {
+    "message": "Compact",
+    "description": "Compact density mode label"
+  },
+  "common_standard": {
+    "message": "Standard",
+    "description": "Standard density mode label"
+  },
+  "common_json": {
+    "message": "JSON",
+    "description": "JSON format label"
+  },
+  "common_markdown": {
+    "message": "Markdown",
+    "description": "Markdown format label"
+  },
+  "common_export": {
+    "message": "Export",
+    "description": "Export section label"
+  },
+  "common_import": {
+    "message": "Import",
+    "description": "Import section label"
+  },
+  "search_placeholder": {
+    "message": "Search clips...",
+    "description": "Search input placeholder text"
+  },
+  "search_searching": {
+    "message": "Searching",
+    "description": "Searching status text"
+  },
+  "search_clearSearch": {
+    "message": "Clear search",
+    "description": "Clear search button label"
+  },
+  "search_searchDescription": {
+    "message": "Type to search through your clipped content",
+    "description": "Search input description for screen readers"
+  },
+  "search_results": {
+    "message": "results",
+    "description": "Search results count label"
+  },
+  "clips_count": {
+    "message": "clips",
+    "description": "Clips count label"
+  },
+  "clips_deleteConfirm": {
+    "message": "Delete \"$1\"?",
+    "description": "Confirmation dialog for deleting a clip. $1 will be replaced with clip title.",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "My Clip Title"
+      }
+    }
+  },
+  "clips_deleteSuccess": {
+    "message": "Clip deleted successfully",
+    "description": "Success message after deleting clip"
+  },
+  "clips_deleteFailed": {
+    "message": "Failed to delete clip",
+    "description": "Error message when delete fails"
+  },
+  "clips_aiGenerated": {
+    "message": "✨ AI-generated",
+    "description": "Label for AI-generated title"
+  },
+  "clips_regenerateTitle": {
+    "message": "Regenerate Title",
+    "description": "Button label to regenerate AI title"
+  },
+  "clips_regenerating": {
+    "message": "Generating...",
+    "description": "Loading message while regenerating AI title"
+  },
+  "clips_newClipAdded": {
+    "message": "New clip added!",
+    "description": "Toast message when new clip is added"
+  },
+  "export_noClipsToExport": {
+    "message": "No clips to export",
+    "description": "Message when trying to export with no clips"
+  },
+  "export_exportSuccess": {
+    "message": "Exported $1 clips to $2",
+    "description": "Success message after export. $1 is number of clips, $2 is export format.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      },
+      "format": {
+        "content": "$2",
+        "example": "JSON"
+      }
+    }
+  },
+  "export_exportToClipboard": {
+    "message": "Copy $1 to clipboard",
+    "description": "Button label to copy to clipboard. $1 is the format.",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "JSON"
+      }
+    }
+  },
+  "export_exportToFile": {
+    "message": "Export $1 to file",
+    "description": "Button label to export to file. $1 is the format.",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "JSON"
+      }
+    }
+  },
+  "export_copySuccess": {
+    "message": "Copied $1 $2 clips to clipboard",
+    "description": "Success message after copying to clipboard",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      },
+      "format": {
+        "content": "$2",
+        "example": "JSON"
+      }
+    }
+  },
+  "export_copyFailed": {
+    "message": "Failed to copy export",
+    "description": "Error message when copy to clipboard fails"
+  },
+  "export_exportFailed": {
+    "message": "Export failed",
+    "description": "Generic export error message"
+  },
+  "export_exportJson": {
+    "message": "Export JSON",
+    "description": "Button label to export as JSON"
+  },
+  "export_copyJson": {
+    "message": "Copy JSON",
+    "description": "Button label to copy JSON to clipboard"
+  },
+  "export_exportMarkdown": {
+    "message": "Export Markdown",
+    "description": "Button label to export as Markdown"
+  },
+  "export_copyMarkdown": {
+    "message": "Copy Markdown",
+    "description": "Button label to copy Markdown to clipboard"
+  },
+  "import_importSuccess": {
+    "message": "Imported $1 clips",
+    "description": "Success message after import. $1 is number of imported clips.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "import_importSuccessMessage": {
+    "message": "Other pages will update automatically.",
+    "description": "System notification message after successful import"
+  },
+  "import_clipboardImportFailed": {
+    "message": "Clipboard import failed",
+    "description": "Error message when clipboard import fails"
+  },
+  "import_importFailed": {
+    "message": "Import failed",
+    "description": "Generic import error message"
+  },
+  "import_importFromFile": {
+    "message": "Import $1 from file",
+    "description": "Button label to import from file. $1 is the format.",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "JSON"
+      }
+    }
+  },
+  "import_importFromClipboard": {
+    "message": "Import $1 from clipboard",
+    "description": "Button label to import from clipboard. $1 is the format.",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "JSON"
+      }
+    }
+  },
+  "import_importReport": {
+    "message": "Imported: $1 · Skipped: $2 · Failed: $3",
+    "description": "Import report summary. $1, $2, $3 are numbers.",
+    "placeholders": {
+      "imported": {
+        "content": "$1",
+        "example": "5"
+      },
+      "skipped": {
+        "content": "$2",
+        "example": "2"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "0"
+      }
+    }
+  },
+  "sidepanel_noClipsYet": {
+    "message": "No clips yet",
+    "description": "Empty state title"
+  },
+  "sidepanel_noClipsHint": {
+    "message": "Select some text on a webpage and use the keyboard shortcut or context menu to clip it.",
+    "description": "Empty state hint text"
+  },
+  "sidepanel_shortcutHint": {
+    "message": "Press Ctrl+Shift+Y to clip",
+    "description": "Shortcut hint text"
+  },
+  "sidepanel_transferHint": {
+    "message": "File and clipboard actions use the currently selected format.",
+    "description": "Hint text about import/export format selection"
+  },
+  "sidepanel_storageQuotaWarning": {
+    "message": "⚠️ Storage almost full. Consider exporting or deleting old clips.",
+    "description": "Warning message when storage is almost full"
+  },
+  "background_storageQuotaWarningTitle": {
+    "message": "Storage almost full",
+    "description": "Notification title for storage quota warning"
+  },
+  "background_storageQuotaWarningMessage": {
+    "message": "You're using $1% of available storage. Consider exporting or deleting old clips.",
+    "description": "Notification message for storage quota warning. $1 is the percentage used.",
+    "placeholders": {
+      "percentage": {
+        "content": "$1",
+        "example": "80"
+      }
+    }
+  },
+  "background_clipSuccess": {
+    "message": "✓ Content clipped!",
+    "description": "Notification title when clip succeeds"
+  },
+  "background_clipSuccessMessage": {
+    "message": "Saved to Block Clipper",
+    "description": "Notification message when clip succeeds"
+  },
+  "background_clipFailed": {
+    "message": "✗ Clipping failed",
+    "description": "Notification title when clip fails"
+  },
+  "background_clipFailedMessage": {
+    "message": "Could not communicate with the page. Try refreshing.",
+    "description": "Notification message when clip fails"
+  },
+  "background_extensionInstalled": {
+    "message": "Block Clipper installed!",
+    "description": "Notification title when extension is installed"
+  },
+  "background_extensionInstalledMessage": {
+    "message": "Select text and press Ctrl+Shift+Y (or Cmd+Shift+Y on Mac) to clip content.",
+    "description": "Notification message when extension is installed"
+  },
+  "background_contextMenuTitle": {
+    "message": "Clip Selection",
+    "description": "Context menu item title"
+  },
+  "detail_sourceLink": {
+    "message": "Source",
+    "description": "Label for source link"
+  },
+  "detail_clipped": {
+    "message": "Clipped",
+    "description": "Label indicating when content was clipped"
+  },
+  "detail_ariaLabelBack": {
+    "message": "Back to list",
+    "description": "Aria label for back button"
+  },
+  "detail_ariaLabelDelete": {
+    "message": "Delete clip",
+    "description": "Aria label for delete button"
+  },
+  "detail_ariaLabelRegenerate": {
+    "message": "Regenerate AI title",
+    "description": "Aria label for regenerate title button"
+  },
+  "detail_ariaLabelAiGenerated": {
+    "message": "AI generated title",
+    "description": "Aria label for AI generated indicator"
+  },
+  "aria_switchLayout": {
+    "message": "Switch to $1 layout",
+    "description": "Aria label for density toggle. $1 is 'compact' or 'standard'.",
+    "placeholders": {
+      "density": {
+        "content": "$1",
+        "example": "compact"
+      }
+    }
+  },
+  "aria_importControls": {
+    "message": "Import controls",
+    "description": "Aria label for import section"
+  },
+  "aria_exportControls": {
+    "message": "Export controls",
+    "description": "Aria label for export section"
+  },
+  "aria_importFormat": {
+    "message": "Import format",
+    "description": "Aria label for import format select"
+  },
+  "aria_exportFormat": {
+    "message": "Export format",
+    "description": "Aria label for export format select"
+  },
+  "time_justNow": {
+    "message": "just now",
+    "description": "Relative time for just now"
+  },
+  "time_minutesAgo": {
+    "message": "$1m ago",
+    "description": "Relative time for minutes ago. $1 is number of minutes.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "time_hoursAgo": {
+    "message": "$1h ago",
+    "description": "Relative time for hours ago. $1 is number of hours.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "time_daysAgo": {
+    "message": "$1d ago",
+    "description": "Relative time for days ago. $1 is number of days.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "7"
+      }
+    }
+  },
+  "content_noContentSelected": {
+    "message": "No content selected",
+    "description": "Error message when no content is selected"
+  },
+  "content_pleaseSelectText": {
+    "message": "Please select some text or content before clipping.",
+    "description": "Hint message when user tries to clip without selection"
+  },
+  "content_processingLargeContent": {
+    "message": "Processing large content, please wait...",
+    "description": "Status message when processing large content"
+  },
+  "content_largeContentWarning": {
+    "message": "The selected content is very large ($1KB). This may take a moment. Continue?",
+    "description": "Warning message for large content. $1 is the size in KB.",
+    "placeholders": {
+      "size": {
+        "content": "$1",
+        "example": "50"
+      }
+    }
+  },
+  "content_queued": {
+    "message": "Queued...",
+    "description": "Status message when clip is queued"
+  },
+  "content_queuedMessage": {
+    "message": "Your clip is queued ($1 in queue). It will be processed automatically.",
+    "description": "Message when clip is queued. $1 is the queue position.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "content_visualSelectorHint": {
+    "message": "Visual Select: hover content, click to preview, Esc to cancel",
+    "description": "Hint text for visual selector mode"
+  },
+  "content_visualSelectorCanceled": {
+    "message": "Visual selector canceled",
+    "description": "Notification title when visual selector is canceled"
+  },
+  "content_selectorModeClosed": {
+    "message": "Selection mode has been closed.",
+    "description": "Notification message when selector mode is closed"
+  },
+  "content_confirmCapture": {
+    "message": "Confirm capture",
+    "description": "Title for visual selector confirmation dialog"
+  },
+  "content_noVisibleText": {
+    "message": "[No visible text detected]",
+    "description": "Placeholder text when no visible text is found"
+  },
+  "content_cancel": {
+    "message": "Cancel",
+    "description": "Cancel button label"
+  },
+  "content_confirmSave": {
+    "message": "Confirm Save",
+    "description": "Confirm save button label"
+  },
+  "content_noTextToCapture": {
+    "message": "No text to capture",
+    "description": "Error message when area has no text"
+  },
+  "content_noTextInArea": {
+    "message": "The selected area has no visible text. Choose another area.",
+    "description": "Hint when selected area has no text"
+  },
+  "content_visualSelectionSaved": {
+    "message": "Visual selection saved to Block Clipper",
+    "description": "Success message for visual selection"
+  },
+  "content_noAreaSelected": {
+    "message": "No area selected",
+    "description": "Error message when no area is selected in visual mode"
+  },
+  "content_moveToSelect": {
+    "message": "Move your mouse over page content and click again.",
+    "description": "Hint when visual selector has no area selected"
+  },
+  "content_tooManyRequests": {
+    "message": "Too many requests queued. Wait for current clips to finish.",
+    "description": "Error message when too many clips are queued"
+  },
+  "content_visualSelectionFailed": {
+    "message": "Failed to save visual selection",
+    "description": "Error message when visual selection fails"
+  },
+  "options_batchSelect": {
+    "message": "Batch Select",
+    "description": "Batch selection mode button"
+  },
+  "options_selectAll": {
+    "message": "Select All",
+    "description": "Select all text"
+  },
+  "options_selectedCount": {
+    "message": "selected",
+    "description": "Selected count label"
+  },
+  "options_deleteSelected": {
+    "message": "Delete Selected",
+    "description": "Delete selected items button"
+  },
+  "options_batchDeleteConfirm": {
+    "message": "Are you sure you want to delete $1 selected clip(s)? This action cannot be undone.",
+    "description": "Batch delete confirmation dialog. $1 is the count.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "options_batchDeleteSuccess": {
+    "message": "Successfully deleted $1 clip(s)",
+    "description": "Batch delete success message. $1 is the count.",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "common_cancel": {
+    "message": "Cancel",
+    "description": "Cancel button"
+  }
+}

@@ -3,7 +3,7 @@
   "displayName": "Block Clipper - Save Web Content Instantly",
   "description": "Clip, save, and organize web content with one click. Local storage, Markdown export, full-text search. Privacy-focused content management.",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -37,5 +37,10 @@
     "typescript": "^5.9.3",
     "vitest": "^3.0.7",
     "wxt": "^0.20.18"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "semi": false,
+    "singleQuote": true
   }
 }

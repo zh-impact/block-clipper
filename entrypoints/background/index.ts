@@ -3,8 +3,8 @@
  * @description Handles storage operations and manages extension lifecycle
  */
 
-import type { CreateBlockInput, Block } from '../utils/block-model';
-import { getStorageService, type StorageService } from '../utils/storage';
+import type { CreateBlockInput, Block } from '../../utils/block-model';
+import { getStorageService, type StorageService } from '../../utils/storage';
 
 /**
  * Message types for background service worker
@@ -24,6 +24,9 @@ type MessageType =
   | 'OPEN_SIDE_PANEL'
   | 'NEW_CLIP_ADDED'
   | 'BLOCK_UPDATED'
+  | 'BLOCK_DELETED'
+  | 'BLOCKS_RELOADED'
+  | 'IMPORT_COMPLETED'
   | 'UPDATE_BLOCK_TITLE'
   | 'PING';
 
@@ -32,7 +35,15 @@ type MessageType =
  */
 interface MessagePayload {
   type: MessageType;
-  data?: CreateBlockInput | { error: string } | { title: string; message: string } | { blockId: string; title: string; aiGenerated: boolean } | { block: Block };
+  data?: CreateBlockInput
+    | { error: string }
+    | { title: string; message: string }
+    | { blockId: string }
+    | { blockId: string; title: string; aiGenerated: boolean }
+    | { block: Block }
+    | { deletedBlockId: string }
+    | { timestamp: number }
+    | { count: number };
 }
 
 /**
@@ -60,8 +71,8 @@ async function initializeStorage(): Promise<void> {
 
       // Show notification to user
       showNotification(
-        'Storage almost full',
-        `You're using ${percentage.toFixed(0)}% of available storage. Consider exporting or deleting old clips.`
+        getMessage('background_storageQuotaWarningTitle'),
+        getMessage('background_storageQuotaWarningMessage', [percentage.toFixed(0)])
       );
     });
 
@@ -84,6 +95,16 @@ function showNotification(title: string, message: string): void {
       priority: 2,
     });
   }
+}
+
+/**
+ * Get translated message
+ * @param key i18n message key
+ * @param substitutions Optional substitutions
+ * @returns Translated message
+ */
+function getMessage(key: string, substitutions?: string | number | (string | number)[]): string {
+  return chrome.i18n.getMessage(key, substitutions as string | (string | number)[] | undefined) || key;
 }
 
 /**
@@ -121,6 +142,11 @@ async function handleClipContent(
       }
     }
 
+    // Check if block was created successfully
+    if (!block) {
+      throw new Error('Failed to create block after retries');
+    }
+
     // Notify sidepanel about new clip (if it's open)
     // We try to send a message, but don't care if it fails (panel might not be open)
     try {
@@ -142,7 +168,7 @@ async function handleClipContent(
     // Show system notification for content script context
     // (sidepanel will show its own toast)
     if (sender.tab?.id) {
-      showNotification('✓ Content clipped!', 'Saved to Block Clipper');
+      showNotification(getMessage('background_clipSuccess'), getMessage('background_clipSuccessMessage'));
     }
 
     // Return block ID in response for AI title generation
@@ -327,14 +353,14 @@ async function handleCommand(command: string, tab?: chrome.tabs.Tab): Promise<vo
       chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_CLIP' }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('[Background] Failed to trigger clip:', chrome.runtime.lastError.message);
-          showNotification('✗ Clipping failed', 'Could not communicate with the page. Try refreshing.');
+          showNotification(getMessage('background_clipFailed'), getMessage('background_clipFailedMessage'));
         }
       });
     } catch (error) {
       console.error('[Background] Failed to trigger clip:', error);
       showNotification(
-        '✗ Clipping failed',
-        error instanceof Error ? error.message : 'Could not communicate with the page. Try refreshing.'
+        getMessage('background_clipFailed'),
+        error instanceof Error ? error.message : getMessage('background_clipFailedMessage')
       );
     }
   } else if (command === 'open-sidepanel') {
@@ -364,7 +390,7 @@ async function createContextMenus(): Promise<void> {
 
     await chrome.contextMenus.create({
       id: 'clip-selection',
-      title: 'Clip Selection',
+      title: getMessage('background_contextMenuTitle'),
       contexts: ['selection', 'page'],
     });
 
@@ -394,14 +420,14 @@ async function handleContextMenuClick(
       chrome.tabs.sendMessage(tab.id, { type: 'TRIGGER_CLIP' }, (response) => {
         if (chrome.runtime.lastError) {
           console.error('[Background] Failed to trigger clip from context menu:', chrome.runtime.lastError.message);
-          showNotification('✗ Clipping failed', 'Could not communicate with the page. Try refreshing.');
+          showNotification(getMessage('background_clipFailed'), getMessage('background_clipFailedMessage'));
         }
       });
     } catch (error) {
       console.error('[Background] Failed to trigger clip from context menu:', error);
       showNotification(
-        '✗ Clipping failed',
-        error instanceof Error ? error.message : 'Could not communicate with the page. Try refreshing.'
+        getMessage('background_clipFailed'),
+        error instanceof Error ? error.message : getMessage('background_clipFailedMessage')
       );
     }
   }
@@ -460,6 +486,66 @@ async function initialize(): Promise<void> {
             }
             break;
 
+          case 'BLOCKS_RELOADED':
+            // Only process if this message is from an external page
+            if (sender.tab) {
+              // Broadcast blocks reloaded message to all pages
+              try {
+                chrome.runtime.sendMessage({
+                  type: 'BLOCKS_RELOADED',
+                  data: message.data || { timestamp: Date.now() },
+                }).catch(() => {
+                  console.log('[Background] No other pages open');
+                });
+              } catch (error) {
+                console.log('[Background] Failed to broadcast BLOCKS_RELOADED');
+              }
+            }
+            break;
+
+          case 'BLOCK_DELETED':
+            // Only process if this message is from an external page
+            if (sender.tab) {
+              // Broadcast block deleted message to all pages
+              try {
+                const deletedId = (message.data as { deletedBlockId?: string })?.deletedBlockId || '';
+                chrome.runtime.sendMessage({
+                  type: 'BLOCK_DELETED',
+                  data: { deletedBlockId: deletedId },
+                }).catch(() => {
+                  console.log('[Background] No other pages open');
+                });
+              } catch (error) {
+                console.log('[Background] Failed to broadcast BLOCK_DELETED');
+              }
+            }
+            break;
+
+          case 'IMPORT_COMPLETED':
+            // Only process if this message is from an external page (not from background itself)
+            if (sender.tab) {
+              // Show system notification for the importer
+              const count = (message.data as { count?: number })?.count || 0
+              if (count > 0) {
+                showNotification(
+                  getMessage('import_importSuccess', [count.toString()]),
+                  getMessage('import_importSuccessMessage', [count.toString()])
+                )
+              }
+              // Broadcast import completed message to all other pages
+              try {
+                chrome.runtime.sendMessage({
+                  type: 'IMPORT_COMPLETED',
+                  data: message.data || { count: 0 },
+                }).catch(() => {
+                  console.log('[Background] No other pages open');
+                });
+              } catch (error) {
+                console.log('[Background] Failed to broadcast IMPORT_COMPLETED');
+              }
+            }
+            break;
+
           default:
             console.warn('[Background] Unknown message type:', message.type);
         }
@@ -502,8 +588,8 @@ async function initialize(): Promise<void> {
     if (details.reason === 'install') {
       // Show welcome notification for new installs only
       showNotification(
-        'Block Clipper installed!',
-        'Select text and press Ctrl+Shift+Y (or Cmd+Shift+Y on Mac) to clip content.'
+        getMessage('background_extensionInstalled'),
+        getMessage('background_extensionInstalledMessage')
       );
     }
   });

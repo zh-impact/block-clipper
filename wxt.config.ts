@@ -1,47 +1,54 @@
-import { defineConfig } from "wxt";
-import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from 'wxt'
+import tailwindcss from '@tailwindcss/vite'
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
-  modules: ["@wxt-dev/module-react"],
+  modules: ['@wxt-dev/module-react'],
+  experimental: {
+    // Enable root-level component auto-import
+    includeComponents: ['components/**/*'],
+    // Enable root-level hook auto-import
+    includeHooks: ['hooks/**/*'],
+  },
   manifest: {
-    name: "Block Clipper",
+    name: 'Block Clipper',
     description:
-      "Clip, save, and organize web content instantly. Local storage, Markdown export, full-text search. Privacy-focused.",
+      'Clip, save, and organize web content instantly. Local storage, Markdown export, full-text search. Privacy-focused.',
     permissions: [
-      "activeTab",
-      "storage",
-      "scripting",
-      "contextMenus",
-      "sidePanel",
-      "notifications",
-      "windows",
+      'activeTab',
+      'storage',
+      'scripting',
+      'contextMenus',
+      'sidePanel',
+      'notifications',
+      'windows',
     ],
-    options_page: "options-page.html",
+    default_locale: 'en',
+    options_page: 'options-page.html',
     side_panel: {
-      default_path: "sidepanel.html",
+      default_path: 'sidepanel.html',
     },
     commands: {
-      "clip-selection": {
+      'clip-selection': {
         suggested_key: {
-          default: "Ctrl+Shift+Y",
-          mac: "Command+Shift+Y",
+          default: 'Ctrl+Shift+Y',
+          mac: 'Command+Shift+Y',
         },
-        description: "Clip selected content",
+        description: 'Clip selected content',
       },
-      "open-sidepanel": {
+      'open-sidepanel': {
         suggested_key: {
-          default: "Ctrl+Shift+S",
-          mac: "Command+Shift+S",
+          default: 'Ctrl+Shift+S',
+          mac: 'Command+Shift+S',
         },
-        description: "Open Block Clipper side panel",
+        description: 'Open Block Clipper side panel',
       },
     },
     action: {
-      default_title: "Open Block Clipper",
+      default_title: 'Open Block Clipper',
     },
   },
   vite: () => ({
     plugins: [tailwindcss()],
   }),
-});
+})

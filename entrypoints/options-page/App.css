@@ -25,7 +25,7 @@ input[type='text'] {
 }
 
 .toolbar-grid {
-  @apply mt-3 flex flex-wrap gap-2;
+  @apply flex flex-wrap gap-2;
 }
 
 .transfer-group {
@@ -160,3 +160,95 @@ pre {
 .density-compact .icon-button {
   @apply h-[26px] w-[26px];
 }
+
+/* Toast Notifications */
+.toast-container {
+  @apply pointer-events-none fixed bottom-4 left-4 right-4 z-[1000] flex flex-col gap-2;
+}
+
+.toast {
+  @apply pointer-events-auto flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-3 text-sm text-white shadow;
+  animation: slideIn 0.3s ease-out;
+}
+
+.toast.success {
+  @apply bg-emerald-500;
+}
+
+.toast.error {
+  @apply bg-red-500;
+}
+
+.toast.info {
+  @apply bg-blue-500;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Batch Selection Styles */
+.normal-toolbar {
+  @apply mb-4 flex items-center gap-2;
+}
+
+.batch-select-button {
+  @apply rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50;
+}
+
+.batch-selection-toolbar {
+  @apply mb-4 flex items-center justify-between rounded-lg border border-blue-300 bg-blue-50 px-4 py-3;
+}
+
+.batch-selection-left {
+  @apply flex items-center gap-3;
+}
+
+.batch-selection-right {
+  @apply flex items-center gap-2;
+}
+
+.batch-checkbox {
+  @apply h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500;
+}
+
+.batch-selection-count {
+  @apply text-sm font-medium text-slate-700;
+}
+
+.batch-delete-button {
+  @apply rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-65;
+}
+
+.batch-cancel-button {
+  @apply rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50;
+}
+
+/* Clip card updates */
+.clip-header-left {
+  @apply flex items-center gap-2;
+}
+
+.clip-checkbox {
+  @apply h-4 w-4 cursor-pointer rounded border-slate-300 text-blue-600 focus:ring-blue-500;
+}
+
+.clips-grid.selection-mode .clip-card {
+  @apply cursor-default;
+}
+
+.clips-grid.selection-mode .clip-card:hover {
+  @apply border-blue-400 bg-blue-50;
+}
+
+.clips-grid.selection-mode .clip-card.selected {
+  @apply border-blue-500 bg-blue-100;
+}
+

@@ -1,0 +1,578 @@
+{
+  "extensionName": {
+    "message": "Block Clipper",
+    "description": "扩展名称"
+  },
+  "extensionDescription": {
+    "message": "即时剪辑、保存和组织网页内容。本地存储、Markdown 导出、全文搜索。注重隐私。",
+    "description": "扩展描述"
+  },
+  "popup_clipCount": {
+    "message": "个剪辑",
+    "description": "弹窗头部中的剪辑数量标签"
+  },
+  "popup_visualSelectTool": {
+    "message": "可视化选择工具",
+    "description": "可视化选择器工具按钮标签"
+  },
+  "popup_noClipsYet": {
+    "message": "暂无剪辑",
+    "description": "弹窗中的空状态消息"
+  },
+  "popup_recentClips": {
+    "message": "最近剪辑",
+    "description": "最近剪辑的标题"
+  },
+  "popup_optionsButton": {
+    "message": "选项",
+    "description": "打开选项页面的按钮标签"
+  },
+  "popup_sidePanelButton": {
+    "message": "侧边栏",
+    "description": "打开侧边栏的按钮标签"
+  },
+  "popup_howToClip": {
+    "message": "如何剪辑：",
+    "description": "帮助部分标题"
+  },
+  "popup_howToClipStep1": {
+    "message": "在网页上选中文字",
+    "description": "如何剪辑指南的第一步"
+  },
+  "popup_howToClipStep2": {
+    "message": "右键点击并选择「剪辑选区」",
+    "description": "如何剪辑指南的第二步"
+  },
+  "popup_howToClipStep3": {
+    "message": "或使用快捷键：Ctrl+Shift+Y",
+    "description": "如何剪辑指南的第三步"
+  },
+  "popup_documentationHelp": {
+    "message": "文档与帮助",
+    "description": "文档链接文本"
+  },
+  "common_loading": {
+    "message": "加载中...",
+    "description": "通用加载消息"
+  },
+  "common_loadingClips": {
+    "message": "加载剪辑中...",
+    "description": "剪辑的加载消息"
+  },
+  "common_noClipsFound": {
+    "message": "未找到剪辑。",
+    "description": "搜索无结果时的消息"
+  },
+  "common_delete": {
+    "message": "删除",
+    "description": "删除按钮标签"
+  },
+  "common_deleteButton": {
+    "message": "🗑️ 删除",
+    "description": "带图标的删除按钮"
+  },
+  "common_back": {
+    "message": "返回",
+    "description": "返回按钮标签"
+  },
+  "common_backToList": {
+    "message": "← 返回列表",
+    "description": "详情视图中的返回按钮标签"
+  },
+  "common_compact": {
+    "message": "紧凑",
+    "description": "紧凑密度模式标签"
+  },
+  "common_standard": {
+    "message": "标准",
+    "description": "标准密度模式标签"
+  },
+  "common_json": {
+    "message": "JSON",
+    "description": "JSON 格式标签"
+  },
+  "common_markdown": {
+    "message": "Markdown",
+    "description": "Markdown 格式标签"
+  },
+  "common_export": {
+    "message": "导出",
+    "description": "导出部分标签"
+  },
+  "common_import": {
+    "message": "导入",
+    "description": "导入部分标签"
+  },
+  "search_placeholder": {
+    "message": "搜索剪辑...",
+    "description": "搜索输入框占位符文本"
+  },
+  "search_searching": {
+    "message": "搜索中",
+    "description": "搜索状态文本"
+  },
+  "search_clearSearch": {
+    "message": "清除搜索",
+    "description": "清除搜索按钮标签"
+  },
+  "search_searchDescription": {
+    "message": "输入以搜索您的剪辑内容",
+    "description": "搜索框的屏幕阅读器描述"
+  },
+  "search_results": {
+    "message": "个结果",
+    "description": "搜索结果计数标签"
+  },
+  "clips_count": {
+    "message": "个剪辑",
+    "description": "剪辑计数标签"
+  },
+  "clips_deleteConfirm": {
+    "message": "确定要删除「$1」吗？",
+    "description": "删除剪辑的确认对话框。$1 将被替换为剪辑标题。",
+    "placeholders": {
+      "title": {
+        "content": "$1",
+        "example": "我的剪辑标题"
+      }
+    }
+  },
+  "clips_deleteSuccess": {
+    "message": "剪辑已成功删除",
+    "description": "删除剪辑后的成功消息"
+  },
+  "clips_deleteFailed": {
+    "message": "删除剪辑失败",
+    "description": "删除失败时的错误消息"
+  },
+  "clips_aiGenerated": {
+    "message": "✨ AI 生成",
+    "description": "AI 生成标题的标签"
+  },
+  "clips_regenerateTitle": {
+    "message": "重新生成标题",
+    "description": "重新生成 AI 标题的按钮标签"
+  },
+  "clips_regenerating": {
+    "message": "生成中...",
+    "description": "重新生成 AI 标题时的加载消息"
+  },
+  "clips_newClipAdded": {
+    "message": "新剪辑已添加！",
+    "description": "添加新剪辑时的提示消息"
+  },
+  "export_noClipsToExport": {
+    "message": "没有可导出的剪辑",
+    "description": "尝试在没有剪辑时导出的消息"
+  },
+  "export_exportSuccess": {
+    "message": "已导出 $1 个剪辑为 $2",
+    "description": "导出成功后的消息。$1 是剪辑数量，$2 是导出格式。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      },
+      "format": {
+        "content": "$2",
+        "example": "JSON"
+      }
+    }
+  },
+  "export_exportToClipboard": {
+    "message": "复制 $1 到剪贴板",
+    "description": "复制到剪贴板的按钮标签。$1 是格式。",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "JSON"
+      }
+    }
+  },
+  "export_exportToFile": {
+    "message": "导出 $1 到文件",
+    "description": "导出到文件的按钮标签。$1 是格式。",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "JSON"
+      }
+    }
+  },
+  "export_copySuccess": {
+    "message": "已复制 $1 个 $2 剪辑到剪贴板",
+    "description": "复制到剪贴板后的成功消息",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      },
+      "format": {
+        "content": "$2",
+        "example": "JSON"
+      }
+    }
+  },
+  "export_copyFailed": {
+    "message": "复制导出失败",
+    "description": "复制到剪贴板失败时的错误消息"
+  },
+  "export_exportFailed": {
+    "message": "导出失败",
+    "description": "通用导出错误消息"
+  },
+  "export_exportJson": {
+    "message": "导出 JSON",
+    "description": "导出为 JSON 的按钮标签"
+  },
+  "export_copyJson": {
+    "message": "复制 JSON",
+    "description": "复制 JSON 到剪贴板的按钮标签"
+  },
+  "export_exportMarkdown": {
+    "message": "导出 Markdown",
+    "description": "导出为 Markdown 的按钮标签"
+  },
+  "export_copyMarkdown": {
+    "message": "复制 Markdown",
+    "description": "复制 Markdown 到剪贴板的按钮标签"
+  },
+  "import_importSuccess": {
+    "message": "已导入 $1 个剪辑",
+    "description": "导入成功后的消息。$1 是导入的剪辑数量。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "import_importSuccessMessage": {
+    "message": "其他页面将自动更新。",
+    "description": "导入成功后的系统通知消息"
+  },
+  "import_clipboardImportFailed": {
+    "message": "剪贴板导入失败",
+    "description": "剪贴板导入失败时的错误消息"
+  },
+  "import_importFailed": {
+    "message": "导入失败",
+    "description": "通用导入错误消息"
+  },
+  "import_importFromFile": {
+    "message": "从文件导入 $1",
+    "description": "从文件导入的按钮标签。$1 是格式。",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "JSON"
+      }
+    }
+  },
+  "import_importFromClipboard": {
+    "message": "从剪贴板导入 $1",
+    "description": "从剪贴板导入的按钮标签。$1 是格式。",
+    "placeholders": {
+      "format": {
+        "content": "$1",
+        "example": "JSON"
+      }
+    }
+  },
+  "import_importReport": {
+    "message": "已导入：$1 · 已跳过：$2 · 失败：$3",
+    "description": "导入报告摘要。$1、$2、$3 是数字。",
+    "placeholders": {
+      "imported": {
+        "content": "$1",
+        "example": "5"
+      },
+      "skipped": {
+        "content": "$2",
+        "example": "2"
+      },
+      "failed": {
+        "content": "$3",
+        "example": "0"
+      }
+    }
+  },
+  "sidepanel_noClipsYet": {
+    "message": "暂无剪辑",
+    "description": "空状态标题"
+  },
+  "sidepanel_noClipsHint": {
+    "message": "在网页上选中一些文字，然后使用键盘快捷键或右键菜单来剪辑它。",
+    "description": "空状态提示文本"
+  },
+  "sidepanel_shortcutHint": {
+    "message": "按 Ctrl+Shift+Y 进行剪辑",
+    "description": "快捷键提示文本"
+  },
+  "sidepanel_transferHint": {
+    "message": "文件和剪贴板操作使用当前选中的格式。",
+    "description": "关于导入/导出格式选择的提示文本"
+  },
+  "sidepanel_storageQuotaWarning": {
+    "message": "⚠️ 存储空间不足。请考虑导出或删除旧剪辑。",
+    "description": "存储空间不足时的警告消息"
+  },
+  "background_storageQuotaWarningTitle": {
+    "message": "存储空间不足",
+    "description": "存储配额警告的通知标题"
+  },
+  "background_storageQuotaWarningMessage": {
+    "message": "您已使用 $1% 的可用存储空间。请考虑导出或删除旧剪辑。",
+    "description": "存储配额警告的通知消息。$1 是使用的百分比。",
+    "placeholders": {
+      "percentage": {
+        "content": "$1",
+        "example": "80"
+      }
+    }
+  },
+  "background_clipSuccess": {
+    "message": "✓ 内容已剪辑！",
+    "description": "剪辑成功时的通知标题"
+  },
+  "background_clipSuccessMessage": {
+    "message": "已保存到 Block Clipper",
+    "description": "剪辑成功时的通知消息"
+  },
+  "background_clipFailed": {
+    "message": "✗ 剪辑失败",
+    "description": "剪辑失败时的通知标题"
+  },
+  "background_clipFailedMessage": {
+    "message": "无法与页面通信。请尝试刷新页面。",
+    "description": "剪辑失败时的通知消息"
+  },
+  "background_extensionInstalled": {
+    "message": "Block Clipper 已安装！",
+    "description": "扩展安装时的通知标题"
+  },
+  "background_extensionInstalledMessage": {
+    "message": "选中文字并按 Ctrl+Shift+Y（Mac 上为 Cmd+Shift+Y）来剪辑内容。",
+    "description": "扩展安装时的通知消息"
+  },
+  "background_contextMenuTitle": {
+    "message": "剪辑选区",
+    "description": "右键菜单项标题"
+  },
+  "detail_sourceLink": {
+    "message": "来源",
+    "description": "来源链接标签"
+  },
+  "detail_clipped": {
+    "message": "剪辑于",
+    "description": "指示内容何时被剪辑的标签"
+  },
+  "detail_ariaLabelBack": {
+    "message": "返回列表",
+    "description": "返回按钮的无障碍标签"
+  },
+  "detail_ariaLabelDelete": {
+    "message": "删除剪辑",
+    "description": "删除按钮的无障碍标签"
+  },
+  "detail_ariaLabelRegenerate": {
+    "message": "重新生成 AI 标题",
+    "description": "重新生成标题按钮的无障碍标签"
+  },
+  "detail_ariaLabelAiGenerated": {
+    "message": "AI 生成的标题",
+    "description": "AI 生成指示器的无障碍标签"
+  },
+  "aria_switchLayout": {
+    "message": "切换到$1布局",
+    "description": "密度切换按钮的无障碍标签。$1 是「紧凑」或「标准」。",
+    "placeholders": {
+      "density": {
+        "content": "$1",
+        "example": "紧凑"
+      }
+    }
+  },
+  "aria_importControls": {
+    "message": "导入控件",
+    "description": "导入部分的无障碍标签"
+  },
+  "aria_exportControls": {
+    "message": "导出控件",
+    "description": "导出部分的无障碍标签"
+  },
+  "aria_importFormat": {
+    "message": "导入格式",
+    "description": "导入格式选择的无障碍标签"
+  },
+  "aria_exportFormat": {
+    "message": "导出格式",
+    "description": "导出格式选择的无障碍标签"
+  },
+  "time_justNow": {
+    "message": "刚刚",
+    "description": "刚刚的相对时间"
+  },
+  "time_minutesAgo": {
+    "message": "$1分钟前",
+    "description": "几分钟前的相对时间。$1 是分钟数。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "time_hoursAgo": {
+    "message": "$1小时前",
+    "description": "几小时前的相对时间。$1 是小时数。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
+  "time_daysAgo": {
+    "message": "$1天前",
+    "description": "几天前的相对时间。$1 是天数。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "7"
+      }
+    }
+  },
+  "content_noContentSelected": {
+    "message": "未选择内容",
+    "description": "未选择内容时的错误消息"
+  },
+  "content_pleaseSelectText": {
+    "message": "请在剪辑前选择一些文字或内容。",
+    "description": "用户尝试在没有选择的情况下剪辑时的提示消息"
+  },
+  "content_processingLargeContent": {
+    "message": "正在处理大量内容，请稍候...",
+    "description": "处理大量内容时的状态消息"
+  },
+  "content_largeContentWarning": {
+    "message": "选择的内容非常大（$1KB）。这可能需要一些时间。是否继续？",
+    "description": "大内容的警告消息。$1 是大小（KB）。",
+    "placeholders": {
+      "size": {
+        "content": "$1",
+        "example": "50"
+      }
+    }
+  },
+  "content_queued": {
+    "message": "已排队...",
+    "description": "剪辑已排队时的状态消息"
+  },
+  "content_queuedMessage": {
+    "message": "您的剪辑已排队（队列中有 $1 个）。它将自动处理。",
+    "description": "剪辑已排队时的消息。$1 是队列位置。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "3"
+      }
+    }
+  },
+  "content_visualSelectorHint": {
+    "message": "可视化选择：悬停在内容上，点击预览，按 Esc 取消",
+    "description": "可视化选择器模式的提示文本"
+  },
+  "content_visualSelectorCanceled": {
+    "message": "可视化选择器已取消",
+    "description": "可视化选择器取消时的通知标题"
+  },
+  "content_selectorModeClosed": {
+    "message": "选择模式已关闭。",
+    "description": "选择模式关闭时的通知消息"
+  },
+  "content_confirmCapture": {
+    "message": "确认捕获",
+    "description": "可视化选择器确认对话框的标题"
+  },
+  "content_noVisibleText": {
+    "message": "[未检测到可见文本]",
+    "description": "未找到可见文本时的占位符文本"
+  },
+  "content_cancel": {
+    "message": "取消",
+    "description": "取消按钮标签"
+  },
+  "content_confirmSave": {
+    "message": "确认保存",
+    "description": "确认保存按钮标签"
+  },
+  "content_noTextToCapture": {
+    "message": "没有可捕获的文本",
+    "description": "区域没有文本时的错误消息"
+  },
+  "content_noTextInArea": {
+    "message": "所选区域没有可见文本。请选择另一个区域。",
+    "description": "所选区域没有文本时的提示"
+  },
+  "content_visualSelectionSaved": {
+    "message": "可视化选择已保存到 Block Clipper",
+    "description": "可视化选择成功的消息"
+  },
+  "content_noAreaSelected": {
+    "message": "未选择区域",
+    "description": "可视化模式下未选择区域时的错误消息"
+  },
+  "content_moveToSelect": {
+    "message": "将鼠标移到页面内容上并再次点击。",
+    "description": "可视化选择器没有选择区域时的提示"
+  },
+  "content_tooManyRequests": {
+    "message": "排队请求过多。请等待当前剪辑完成。",
+    "description": "排队剪辑过多时的错误消息"
+  },
+  "content_visualSelectionFailed": {
+    "message": "保存可视化选择失败",
+    "description": "可视化选择失败时的错误消息"
+  },
+  "options_batchSelect": {
+    "message": "批量选择",
+    "description": "批量选择模式按钮"
+  },
+  "options_selectAll": {
+    "message": "全选",
+    "description": "全选文本"
+  },
+  "options_selectedCount": {
+    "message": "个已选择",
+    "description": "已选择数量标签"
+  },
+  "options_deleteSelected": {
+    "message": "删除选中",
+    "description": "删除选中项按钮"
+  },
+  "options_batchDeleteConfirm": {
+    "message": "确定要删除选中的 $1 个剪辑吗？此操作无法撤销。",
+    "description": "批量删除确认对话框。$1 是数量。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "options_batchDeleteSuccess": {
+    "message": "已成功删除 $1 个剪辑",
+    "description": "批量删除成功消息。$1 是数量。",
+    "placeholders": {
+      "count": {
+        "content": "$1",
+        "example": "5"
+      }
+    }
+  },
+  "common_cancel": {
+    "message": "取消",
+    "description": "取消按钮"
+  }
+}
