@@ -574,5 +574,33 @@
   "common_cancel": {
     "message": "取消",
     "description": "取消按钮"
+  },
+  "popup_savePage": {
+    "message": "保存页面",
+    "description": "保存当前页面的按钮标签"
+  },
+  "popup_savePageSaving": {
+    "message": "保存中...",
+    "description": "保存页面按钮的加载状态"
+  },
+  "background_savePageSuccess": {
+    "message": "✓ 页面保存成功",
+    "description": "页面保存成功时的通知标题"
+  },
+  "background_savePageSuccessMessage": {
+    "message": "完整页面内容已保存到 Block Clipper",
+    "description": "页面保存成功时的通知消息"
+  },
+  "background_savePageFailed": {
+    "message": "✗ 保存页面失败",
+    "description": "页面保存失败时的通知标题"
+  },
+  "background_noActivePage": {
+    "message": "未找到活动页面。请先导航到网页。",
+    "description": "没有活动标签页时的错误消息"
+  },
+  "background_storageQuotaExceeded": {
+    "message": "存储空间不足。请删除一些剪辑或导出数据。",
+    "description": "存储配额超出时的错误消息"
   }
 }

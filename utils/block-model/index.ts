@@ -19,6 +19,7 @@ export interface BlockSource {
   url: string;
   title: string;
   favicon?: string;
+  contentSource: 'selection' | 'full-page'; // Indicates how content was saved
 }
 
 /**
@@ -149,13 +150,20 @@ export function isValidBlock(block: unknown): block is Block {
  * @param url Source URL
  * @param title Source title
  * @param favicon Optional favicon URL
+ * @param contentSource How content was saved ('selection' | 'full-page'), defaults to 'selection'
  * @returns BlockSource object
  */
-export function createBlockSource(url: string, title: string, favicon?: string): BlockSource {
+export function createBlockSource(
+  url: string,
+  title: string,
+  favicon?: string,
+  contentSource: 'selection' | 'full-page' = 'selection'
+): BlockSource {
   return {
     url,
     title,
     favicon,
+    contentSource,
   };
 }
 
@@ -174,7 +182,11 @@ export function isValidBlockSource(source: unknown): source is BlockSource {
   return (
     typeof s.url === 'string' &&
     typeof s.title === 'string' &&
-    (s.favicon === undefined || typeof s.favicon === 'string')
+    (s.favicon === undefined || typeof s.favicon === 'string') &&
+    // contentSource is required for new blocks, but for backward compatibility
+    // we allow it to be undefined (will be treated as 'selection')
+    (s.contentSource === undefined || typeof s.contentSource === 'string') &&
+    (s.contentSource === undefined || ['selection', 'full-page'].includes(s.contentSource))
   );
 }
 

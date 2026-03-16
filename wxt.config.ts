@@ -47,6 +47,12 @@ export default defineConfig({
     action: {
       default_title: 'Open Block Clipper',
     },
+    web_accessible_resources: [
+      {
+        resources: ['chunks/*-Readability.js'],
+        matches: ['<all_urls>'],
+      },
+    ],
   },
   vite: () => ({
     plugins: [tailwindcss()],

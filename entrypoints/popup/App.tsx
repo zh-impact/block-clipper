@@ -19,6 +19,7 @@ function App(): JSX.Element {
   const [blocks, setBlocks] = useState<Block[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [clipCount, setClipCount] = useState(0)
+  const [isSavingPage, setIsSavingPage] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   // Shared hooks
@@ -118,6 +119,25 @@ function App(): JSX.Element {
   }, [showToast])
 
   /**
+   * Save current page content
+   */
+  const savePage = useCallback(async () => {
+    if (isSavingPage) return
+
+    setIsSavingPage(true)
+    try {
+      // Send SAVE_PAGE message to background
+      await chrome.runtime.sendMessage({ type: 'SAVE_PAGE' })
+      // Close popup after sending message
+      window.close()
+    } catch (error) {
+      console.error('[Popup] Failed to save page:', error)
+      showToast(error instanceof Error ? error.message : t('background_savePageFailed'), 'error')
+      setIsSavingPage(false)
+    }
+  }, [isSavingPage, showToast, t])
+
+  /**
    * Open documentation/help
    */
   const openDocumentation = useCallback(() => {
@@ -142,6 +162,14 @@ function App(): JSX.Element {
       <div className="quick-action-row">
         <button onClick={() => void startVisualSelector()} className="visual-selector-button">
           {t('popup_visualSelectTool')}
+        </button>
+        <button
+          onClick={() => void savePage()}
+          disabled={isSavingPage}
+          className="save-page-button"
+          aria-label={t('popup_savePage')}
+        >
+          {isSavingPage ? t('popup_savePageSaving') : `📄 ${t('popup_savePage')}`}
         </button>
       </div>
 

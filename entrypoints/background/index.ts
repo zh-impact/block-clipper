@@ -5,6 +5,7 @@
 
 import type { CreateBlockInput, Block } from '../../utils/block-model';
 import { getStorageService, type StorageService } from '../../utils/storage';
+import { getPageSaverScript } from '../../utils/pageSaverScript';
 
 /**
  * Message types for background service worker
@@ -28,6 +29,9 @@ type MessageType =
   | 'BLOCKS_RELOADED'
   | 'IMPORT_COMPLETED'
   | 'UPDATE_BLOCK_TITLE'
+  | 'SAVE_PAGE'
+  | 'PAGE_CONTENT_EXTRACTED'
+  | 'PAGE_CONTENT_EXTRACTION_FAILED'
   | 'PING';
 
 /**
@@ -228,6 +232,167 @@ async function handleUpdateBlockTitle(
     return {
       type: 'CLIP_ERROR',
       data: { error: error instanceof Error ? error.message : 'Failed to update block title' },
+    };
+  }
+}
+
+/**
+ * Handle save page message
+ * @description Extracts page content using Readability and saves it as a block
+ * @returns Response message
+ */
+async function handleSavePage(): Promise<MessagePayload> {
+  try {
+    console.log('[Background] ===== SAVE_PAGE: Starting =====');
+
+    // Get active tab
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    console.log('[Background] Active tab:', activeTab?.id, activeTab?.url);
+
+    if (!activeTab?.id) {
+      console.error('[Background] No active tab found');
+      showNotification(
+        getMessage('background_savePageFailed'),
+        getMessage('background_noActivePage')
+      );
+      return {
+        type: 'CLIP_ERROR',
+        data: { error: getMessage('background_noActivePage') },
+      };
+    }
+
+    // Check storage quota before extraction
+    await initializeStorage();
+    if (!storageService) {
+      throw new Error('Storage service not initialized');
+    }
+
+    const usage = await storageService.getUsage();
+    console.log('[Background] Storage usage:', usage.percentage.toFixed(1) + '%');
+    if (usage.percentage > 90) {
+      showNotification(
+        getMessage('background_storageQuotaWarningTitle'),
+        getMessage('background_storageQuotaWarningMessage', [usage.percentage.toFixed(0)])
+      );
+      return {
+        type: 'CLIP_ERROR',
+        data: { error: getMessage('background_storageQuotaExceeded') },
+      };
+    }
+
+    // Request content extraction from content script
+    console.log('[Background] Requesting content extraction from tab:', activeTab.id);
+
+    // Set up timeout for extraction (10 seconds)
+    const EXTRACTION_TIMEOUT = 10000;
+    let extractionResolved = false;
+
+    const extractionPromise = new Promise<{ title: string; content: string }>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        if (!extractionResolved) {
+          console.error('[Background] Extraction timed out after', EXTRACTION_TIMEOUT, 'ms');
+          reject(new Error('Content extraction timed out'));
+        }
+      }, EXTRACTION_TIMEOUT);
+
+      // Listen for extraction result
+      const messageListener = (message: MessagePayload) => {
+        console.log('[Background] Received message:', message.type);
+
+        if (message.type === 'PAGE_CONTENT_EXTRACTED') {
+          extractionResolved = true;
+          clearTimeout(timeoutId);
+          chrome.runtime.onMessage.removeListener(messageListener);
+          console.log('[Background] ✓ Extraction successful, content length:', (message.data as { content: string })?.content?.length);
+          resolve(message.data as { title: string; content: string });
+        } else if (message.type === 'PAGE_CONTENT_EXTRACTION_FAILED') {
+          extractionResolved = true;
+          clearTimeout(timeoutId);
+          chrome.runtime.onMessage.removeListener(messageListener);
+          const errorMsg = message.error as string || 'Failed to extract page content';
+          console.error('[Background] ✗ Extraction failed:', errorMsg);
+          reject(new Error(errorMsg));
+        }
+      };
+
+      chrome.runtime.onMessage.addListener(messageListener);
+      console.log('[Background] Message listener registered');
+    });
+
+    // Send extraction request to the content script
+    // Content script is auto-loaded on all pages, just send message
+    try {
+      console.log('[Background] Sending EXTRACT_PAGE_CONTENT message to tab:', activeTab.id);
+      chrome.tabs.sendMessage(
+        activeTab.id,
+        { type: 'EXTRACT_PAGE_CONTENT' },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('[Background] Failed to send extraction request:', chrome.runtime.lastError.message);
+            // Don't throw here, let the timeout handle it
+          }
+        }
+      );
+    } catch (error) {
+      console.error('[Background] Failed to send message:', error);
+      throw new Error('Cannot communicate with this page. Try refreshing the page.');
+    }
+
+    // Wait for extraction result
+    console.log('[Background] Waiting for extraction result...');
+    const extractedContent = await extractionPromise;
+    console.log('[Background] Extraction received:', { title: extractedContent.title, contentLength: extractedContent.content.length });
+
+    // Create block with extracted content
+    const blockData: CreateBlockInput = {
+      type: 'text',
+      content: extractedContent.content,
+      source: {
+        url: activeTab.url || '',
+        title: extractedContent.title,
+        contentSource: 'full-page',
+      },
+    };
+
+    console.log('[Background] Creating block...');
+    const block = await storageService.create(blockData);
+    console.log('[Background] ✓ Block created successfully:', block.id);
+
+    // Broadcast block update to all pages
+    try {
+      chrome.runtime.sendMessage({
+        type: 'BLOCK_UPDATED',
+        data: { block },
+      }).catch(() => {
+        console.log('[Background] No other pages open');
+      });
+    } catch (error) {
+      console.log('[Background] Failed to broadcast BLOCK_UPDATED');
+    }
+
+    // Show success notification
+    showNotification(
+      getMessage('background_savePageSuccess'),
+      getMessage('background_savePageSuccessMessage')
+    );
+
+    console.log('[Background] ===== SAVE_PAGE: Complete =====');
+    return { type: 'CLIP_SUCCESS', data: { blockId: block.id } };
+  } catch (error) {
+    console.error('[Background] ===== SAVE_PAGE: Failed =====');
+    console.error('[Background] Error details:', error);
+
+    const errorMessage = error instanceof Error ? error.message : 'Failed to extract page content';
+
+    // Show error notification
+    showNotification(
+      getMessage('background_savePageFailed'),
+      errorMessage
+    );
+
+    return {
+      type: 'CLIP_ERROR',
+      data: { error: errorMessage },
     };
   }
 }
@@ -465,6 +630,10 @@ async function initialize(): Promise<void> {
 
           case 'UPDATE_BLOCK_TITLE':
             response = await handleUpdateBlockTitle(message.data as { blockId: string; title: string; aiGenerated: boolean });
+            break;
+
+          case 'SAVE_PAGE':
+            response = await handleSavePage();
             break;
 
           case 'OPEN_VISUAL_SELECTOR':

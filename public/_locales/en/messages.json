@@ -574,5 +574,33 @@
   "common_cancel": {
     "message": "Cancel",
     "description": "Cancel button"
+  },
+  "popup_savePage": {
+    "message": "Save Page",
+    "description": "Button label to save current page"
+  },
+  "popup_savePageSaving": {
+    "message": "Saving...",
+    "description": "Loading state for save page button"
+  },
+  "background_savePageSuccess": {
+    "message": "✓ Page saved successfully",
+    "description": "Notification title when page is saved"
+  },
+  "background_savePageSuccessMessage": {
+    "message": "Full page content saved to Block Clipper",
+    "description": "Notification message when page is saved"
+  },
+  "background_savePageFailed": {
+    "message": "✗ Failed to save page",
+    "description": "Notification title when page save fails"
+  },
+  "background_noActivePage": {
+    "message": "No active page found. Navigate to a webpage first.",
+    "description": "Error message when no active tab"
+  },
+  "background_storageQuotaExceeded": {
+    "message": "Storage almost full. Delete some clips or export data.",
+    "description": "Error message when storage quota exceeded"
   }
 }
